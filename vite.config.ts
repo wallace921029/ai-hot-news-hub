@@ -10,4 +10,10 @@ export default defineConfig({
       '@': import.meta.dirname + '/src',
     },
   },
+  server: {
+    port: 8763,
+    watch: {
+      ignored: ['**/backend/**', '**/node_modules/**', '**/dist/**'],
+    },
+  },
 })

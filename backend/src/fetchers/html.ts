@@ -11,13 +11,22 @@ const baiduParser: HtmlParser = {
     const $ = cheerio.load(html)
     const items: RawNewsItem[] = []
 
-    $('.category-wrap_iQLoo').each((_, el) => {
+    // 百度热搜的 HTML 结构
+    $('.category-wrap_iQLoo, .hot-item, [class*="hot"]').each((_, el) => {
       const $el = $(el)
-      const title = $el.find('.c-single-text-ellipsis').text().trim()
+      const title = $el
+        .find('.c-single-text-ellipsis, .title, [class*="title"]')
+        .first()
+        .text()
+        .trim()
       const url = $el.find('a').attr('href') || ''
-      const hotScore = parseInt($el.find('.hot-index_1Bl1a').text().trim()) || 0
+      const hotScoreText = $el
+        .find('.hot-index_1Bl1a, [class*="index"], [class*="hot"]')
+        .text()
+        .trim()
+      const hotScore = parseInt(hotScoreText.replace(/[^\d]/g, '')) || 0
 
-      if (title) {
+      if (title && title.length > 1) {
         items.push({
           sourceId: source.id,
           platform: 'baidu',
@@ -33,7 +42,7 @@ const baiduParser: HtmlParser = {
   },
 }
 
-// IT之家
+// IT之家 (XML)
 const ithomeParser: HtmlParser = {
   parse(html, source) {
     const $ = cheerio.load(html)
@@ -52,7 +61,7 @@ const ithomeParser: HtmlParser = {
           platform: 'ithome',
           title,
           url,
-          description,
+          description: description.substring(0, 200),
           publishedAt: pubDate ? new Date(pubDate) : undefined,
           fetchedAt: new Date(),
         })
@@ -63,51 +72,44 @@ const ithomeParser: HtmlParser = {
   },
 }
 
-// 超神经
+// 超神经 - 使用 JSON API
 const hyperaiParser: HtmlParser = {
   parse(html, source) {
+    // 尝试解析 JSON 响应
+    try {
+      const data = JSON.parse(html)
+      if (data.data && Array.isArray(data.data)) {
+        return data.data.map(
+          (item: { title: string; slug?: string; url?: string; summary?: string }) => ({
+            sourceId: source.id,
+            platform: 'hyperai',
+            title: item.title,
+            url: item.url || `https://hyper.ai/articles/${item.slug}`,
+            description: item.summary?.substring(0, 200),
+            fetchedAt: new Date(),
+          })
+        )
+      }
+    } catch {
+      // 如果不是 JSON，尝试 HTML 解析
+    }
+
     const $ = cheerio.load(html)
     const items: RawNewsItem[] = []
 
-    $('article, .article-item, .news-item').each((_, el) => {
+    $('article, .article-item, .news-item, [class*="article"]').each((_, el) => {
       const $el = $(el)
-      const title = $el.find('h2, h3, .title').first().text().trim()
+      const title = $el.find('h2, h3, .title, [class*="title"]').first().text().trim()
       const url = $el.find('a').first().attr('href') || ''
-      const description = $el.find('p, .summary, .excerpt').first().text().trim()
+      const description = $el.find('p, .summary, .excerpt, [class*="desc"]').first().text().trim()
 
-      if (title) {
+      if (title && title.length > 1) {
         items.push({
           sourceId: source.id,
           platform: 'hyperai',
           title,
           url: url.startsWith('http') ? url : `https://hyper.ai${url}`,
-          description,
-          fetchedAt: new Date(),
-        })
-      }
-    })
-
-    return items
-  },
-}
-
-// 澎湃新闻
-const thepaperParser: HtmlParser = {
-  parse(html, source) {
-    const $ = cheerio.load(html)
-    const items: RawNewsItem[] = []
-
-    $('a').each((_, el) => {
-      const $el = $(el)
-      const title = $el.text().trim()
-      const url = $el.attr('href') || ''
-
-      if (title && url && url.includes('/detail/')) {
-        items.push({
-          sourceId: source.id,
-          platform: 'thepaper',
-          title,
-          url: url.startsWith('http') ? url : `https://www.thepaper.cn${url}`,
+          description: description.substring(0, 200),
           fetchedAt: new Date(),
         })
       }
@@ -122,7 +124,6 @@ const parsers: Record<string, HtmlParser> = {
   baidu: baiduParser,
   ithome: ithomeParser,
   hyperai: hyperaiParser,
-  thepaper: thepaperParser,
 }
 
 export class HtmlFetcher implements Fetcher {

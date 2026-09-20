@@ -8,9 +8,11 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { Settings, Brain, RefreshCw, Clock } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 export function AdminConfig() {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
   const [aiForm, setAiForm] = useState({
     aiApiKey: '',
     aiBaseUrl: '',
@@ -52,43 +54,45 @@ export function AdminConfig() {
 
   const saveAiMutation = useMutation({
     mutationFn: () => {
-      const data: any = { ...aiForm }
+      const data: Record<string, unknown> = { ...aiForm }
       if (data.aiApiKey === '***') delete data.aiApiKey
       return api.updateConfig(data)
     },
     onSuccess: () => {
-      toast.success('AI 配置已保存')
+      toast.success(t('admin.config.saveSuccess'))
       queryClient.invalidateQueries({ queryKey: ['admin-config'] })
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : '保存失败'),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : t('admin.config.saveFailed')),
   })
 
   const saveBasicMutation = useMutation({
     mutationFn: () => api.updateConfig(basicForm),
     onSuccess: () => {
-      toast.success('基本设置已保存')
+      toast.success(t('admin.config.saveSuccess'))
       queryClient.invalidateQueries({ queryKey: ['admin-config'] })
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : '保存失败'),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : t('admin.config.saveFailed')),
   })
 
   const autoFetchMutation = useMutation({
     mutationFn: (enabled: boolean) => api.setAutoFetch(enabled),
     onSuccess: () => {
-      toast.success('已更新')
+      toast.success(t('common.success'))
       queryClient.invalidateQueries({ queryKey: ['auto-fetch'] })
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : '更新失败'),
+    onError: (error) => toast.error(error instanceof Error ? error.message : t('common.failed')),
   })
 
   const fetchModels = async () => {
     if (!aiForm.aiBaseUrl) {
-      toast.error('请先填写 Base URL')
+      toast.error(t('admin.config.saveFailed'))
       return
     }
     const apiKey = aiForm.aiApiKey || config?.aiApiKey
     if (!apiKey) {
-      toast.error('请先填写 API Key')
+      toast.error(t('admin.config.saveFailed'))
       return
     }
     setLoadingModels(true)
@@ -96,9 +100,9 @@ export function AdminConfig() {
       const result = await api.getAIModels(aiForm.aiBaseUrl, apiKey)
       setModels(result.models)
       setShowModelList(true)
-      if (result.models.length === 0) toast.info('未找到可用模型')
+      if (result.models.length === 0) toast.info(t('admin.config.noModels'))
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '获取模型列表失败')
+      toast.error(error instanceof Error ? error.message : t('admin.config.modelsFetchFailed'))
     } finally {
       setLoadingModels(false)
     }
@@ -107,7 +111,7 @@ export function AdminConfig() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-white/20 border-t-violet-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-muted border-t-primary rounded-full animate-spin" />
       </div>
     )
   }
@@ -115,85 +119,71 @@ export function AdminConfig() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">系统配置</h1>
-        <p className="text-sm text-white/40 mt-1">管理系统运行参数</p>
+        <h1 className="text-2xl font-bold text-foreground">{t('admin.config.title')}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{t('admin.config.subtitle')}</p>
       </div>
 
-      {/* Tab 切换 */}
       <Tabs defaultValue="ai">
-        <TabsList className="bg-white/5 border border-white/10">
-          <TabsTrigger
-            value="ai"
-            className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50"
-          >
+        <TabsList>
+          <TabsTrigger value="ai">
             <Brain className="h-4 w-4 mr-2" />
-            AI 模型
+            {t('admin.config.aiModel')}
           </TabsTrigger>
-          <TabsTrigger
-            value="basic"
-            className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50"
-          >
+          <TabsTrigger value="basic">
             <Settings className="h-4 w-4 mr-2" />
-            基本设置
+            {t('admin.config.basicSettings')}
           </TabsTrigger>
-          <TabsTrigger
-            value="fetch"
-            className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50"
-          >
+          <TabsTrigger value="fetch">
             <Clock className="h-4 w-4 mr-2" />
-            抓取设置
+            {t('admin.config.fetchSettings')}
           </TabsTrigger>
         </TabsList>
 
-        {/* AI 模型配置 */}
         <TabsContent value="ai">
-          <div className="glass-card rounded-xl p-5 space-y-4">
+          <div className="rounded-xl border bg-card text-card-foreground p-5 space-y-4">
             <div className="space-y-2">
-              <Label className="text-white/70">API Key</Label>
+              <Label>{t('admin.config.apiKey')}</Label>
               <Input
                 type="password"
                 value={aiForm.aiApiKey}
                 onChange={(e) => setAiForm({ ...aiForm, aiApiKey: e.target.value })}
-                placeholder="输入 API Key"
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                placeholder={t('admin.config.apiKey')}
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-white/70">Base URL</Label>
+              <Label>{t('admin.config.baseUrl')}</Label>
               <Input
                 value={aiForm.aiBaseUrl}
                 onChange={(e) => setAiForm({ ...aiForm, aiBaseUrl: e.target.value })}
                 placeholder="https://api.openai.com/v1"
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
               />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-white/70">模型名称</Label>
+                <Label>{t('admin.config.modelName')}</Label>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-xs text-white/40 hover:text-white h-6 px-2"
+                  className="text-xs h-6 px-2"
                   onClick={fetchModels}
                   disabled={loadingModels}
                 >
                   <RefreshCw className={`h-3 w-3 mr-1 ${loadingModels ? 'animate-spin' : ''}`} />
-                  获取模型列表
+                  {t('admin.config.getModels')}
                 </Button>
               </div>
               <div className="relative">
                 <Input
                   value={aiForm.aiModel}
                   onChange={(e) => setAiForm({ ...aiForm, aiModel: e.target.value })}
-                  placeholder="输入模型名称或点击上方按钮获取"
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                  placeholder={t('admin.config.modelName')}
                 />
                 {showModelList && models.length > 0 && (
-                  <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-gray-900 border border-white/10 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                  <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-lg shadow-xl max-h-48 overflow-y-auto">
                     {models.map((model) => (
                       <button
                         key={model}
-                        className="w-full text-left px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                        className="w-full text-left px-3 py-2 text-sm text-foreground/70 hover:bg-accent hover:text-foreground transition-colors"
                         onClick={() => {
                           setAiForm({ ...aiForm, aiModel: model })
                           setShowModelList(false)
@@ -207,22 +197,24 @@ export function AdminConfig() {
               </div>
             </div>
             <Button
+              type="button"
               onClick={() => saveAiMutation.mutate()}
               disabled={saveAiMutation.isPending}
-              className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+              className="bg-foreground text-background hover:bg-foreground/90"
             >
-              保存 AI 配置
+              {t('admin.config.saveAiConfig')}
             </Button>
           </div>
         </TabsContent>
 
-        {/* 基本设置 */}
         <TabsContent value="basic">
-          <div className="glass-card rounded-xl p-5 space-y-4">
+          <div className="rounded-xl border bg-card text-card-foreground p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-white/70">开放注册</Label>
-                <p className="text-xs text-white/30 mt-0.5">关闭后新用户无法注册</p>
+                <Label>{t('admin.config.openRegistration')}</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {t('admin.config.openRegistrationDesc')}
+                </p>
               </div>
               <Switch
                 checked={basicForm.registrationEnabled}
@@ -232,31 +224,32 @@ export function AdminConfig() {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-white/70">邀请码</Label>
+              <Label>{t('admin.config.inviteCode')}</Label>
               <Input
                 value={basicForm.inviteCode}
                 onChange={(e) => setBasicForm({ ...basicForm, inviteCode: e.target.value })}
-                placeholder="邀请码"
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                placeholder={t('admin.config.inviteCode')}
               />
             </div>
             <Button
+              type="button"
               onClick={() => saveBasicMutation.mutate()}
               disabled={saveBasicMutation.isPending}
-              className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+              className="bg-foreground text-background hover:bg-foreground/90"
             >
-              保存基本设置
+              {t('admin.config.saveBasicSettings')}
             </Button>
           </div>
         </TabsContent>
 
-        {/* 抓取设置 */}
         <TabsContent value="fetch">
-          <div className="glass-card rounded-xl p-5 space-y-4">
+          <div className="rounded-xl border bg-card text-card-foreground p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-white/70">自动定时抓取</Label>
-                <p className="text-xs text-white/30 mt-0.5">开启后每 30 分钟自动抓取所有数据源</p>
+                <Label>{t('admin.config.autoFetch')}</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {t('admin.config.autoFetchDesc', { interval: basicForm.fetchInterval })}
+                </p>
               </div>
               <Switch
                 checked={autoFetchData?.enabled ?? false}
@@ -264,7 +257,7 @@ export function AdminConfig() {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-white/70">抓取间隔（分钟）</Label>
+              <Label>{t('admin.config.fetchInterval')}</Label>
               <Input
                 type="number"
                 value={basicForm.fetchInterval}
@@ -273,15 +266,16 @@ export function AdminConfig() {
                 }
                 min={5}
                 max={1440}
-                className="bg-white/5 border-white/10 text-white max-w-xs"
+                className="max-w-xs"
               />
             </div>
             <Button
+              type="button"
               onClick={() => saveBasicMutation.mutate()}
               disabled={saveBasicMutation.isPending}
-              className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+              className="bg-foreground text-background hover:bg-foreground/90"
             >
-              保存抓取设置
+              {t('admin.config.saveFetchSettings')}
             </Button>
           </div>
         </TabsContent>

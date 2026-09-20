@@ -2,325 +2,157 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/services/api'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
-import { Trash2, ExternalLink, FileText, ChevronLeft, ChevronRight, Globe, Rss } from 'lucide-react'
-
-const sourceTypeConfig = {
-  api: { label: 'API', icon: Globe, className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-  rss: {
-    label: 'RSS',
-    icon: Rss,
-    className: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  },
-  topic: {
-    label: '话题',
-    icon: FileText,
-    className: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  },
-}
+import { Trash2, RefreshCw, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import type { NewsItem } from '@/types'
 
 export function AdminContent() {
-  const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
-  const [sourceType, setSourceType] = useState<string>('')
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const queryClient = useQueryClient()
+  const { t } = useTranslation()
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-content', page, pageSize, sourceType],
-    queryFn: () =>
-      api.getAdminContent({
-        page,
-        pageSize,
-        sourceType: sourceType || undefined,
-      }),
+    queryKey: ['admin-content', page],
+    queryFn: () => api.getAdminContent({ page, pageSize: 20 }),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.deleteContent(id),
     onSuccess: () => {
-      toast.success('删除成功')
+      toast.success(t('admin.content.deleteSuccess'))
       queryClient.invalidateQueries({ queryKey: ['admin-content'] })
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : '删除失败'),
+    onError: () => toast.error(t('common.failed')),
   })
 
-  const batchDeleteMutation = useMutation({
-    mutationFn: (ids: number[]) => api.batchDeleteContent(ids),
+  const fetchAllMutation = useMutation({
+    mutationFn: () => api.fetchAllContent(),
     onSuccess: () => {
-      toast.success('批量删除成功')
-      setSelectedIds(new Set())
-      queryClient.invalidateQueries({ queryKey: ['admin-content'] })
+      toast.success(t('admin.content.fetchTriggered'))
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : '批量删除失败'),
+    onError: () => toast.error(t('common.failed')),
   })
 
-  const toggleSelectAll = () => {
-    if (selectedIds.size === data?.items.length) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(data?.items.map((item: any) => item.id)))
-    }
-  }
-
-  const toggleSelect = (id: number) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-foreground">{t('admin.content.title')}</h1>
+        <div className="space-y-2">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
-      {/* 标题和操作按钮 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">内容管理</h1>
-          <p className="text-sm text-white/40 mt-1">共 {data?.pagination.total || 0} 条内容</p>
+          <h1 className="text-2xl font-bold text-foreground">{t('admin.content.title')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {t('admin.content.total', { count: data?.pagination?.total || 0 })}
+          </p>
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => fetchAllMutation.mutate()}
+          disabled={fetchAllMutation.isPending}
+        >
+          <RefreshCw
+            className={`h-4 w-4 mr-2 ${fetchAllMutation.isPending ? 'animate-spin' : ''}`}
+          />
+          {t('admin.sources.fetchAll')}
+        </Button>
       </div>
 
-      {/* 筛选栏 */}
-      <div className="flex items-center space-x-1 bg-white/[0.03] rounded-lg p-1 w-fit">
-        {[
-          { value: '', label: '全部' },
-          { value: 'api', label: 'API' },
-          { value: 'rss', label: 'RSS' },
-          { value: 'topic', label: '话题' },
-        ].map((option) => (
-          <button
-            key={option.value}
-            onClick={() => {
-              setSourceType(option.value)
-              setPage(1)
-            }}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-              sourceType === option.value
-                ? 'bg-white/10 text-white'
-                : 'text-white/40 hover:text-white/60 hover:bg-white/5'
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-
-      {/* 工具栏 */}
-      {data && data.items.length > 0 && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                checked={selectedIds.size === data.items.length && data.items.length > 0}
-                onCheckedChange={toggleSelectAll}
-                className="border-white/20 data-[state=checked]:bg-violet-500 data-[state=checked]:border-violet-500"
-              />
-              <span className="text-sm text-white/50 cursor-pointer" onClick={toggleSelectAll}>
-                全选
-              </span>
-              {selectedIds.size > 0 && (
-                <span className="text-sm text-white/30">已选 {selectedIds.size} 项</span>
-              )}
-            </div>
-            {selectedIds.size > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                onClick={() => {
-                  if (confirm(`确定删除选中的 ${selectedIds.size} 条内容？`)) {
-                    batchDeleteMutation.mutate(Array.from(selectedIds))
-                  }
-                }}
+      <div className="rounded-xl border bg-card text-card-foreground overflow-hidden">
+        {!data?.items?.length ? (
+          <div className="text-center py-16">
+            <FileText className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-muted-foreground">{t('admin.content.noContent')}</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border/50">
+            {data.items.map((item: NewsItem) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 transition-colors"
               >
-                <Trash2 className="h-4 w-4 mr-1" />
-                删除选中
-              </Button>
-            )}
+                <div className="flex-1 min-w-0 mr-4">
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-foreground hover:text-primary transition-colors line-clamp-1"
+                  >
+                    {item.title}
+                  </a>
+                  <div className="flex items-center space-x-2 mt-1">
+                    {item.sourceName && (
+                      <span className="text-xs text-primary">{item.sourceName}</span>
+                    )}
+                    <Badge variant="outline" className="text-[10px]">
+                      {item.platform}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(item.fetchedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive shrink-0"
+                  onClick={() => {
+                    if (confirm(t('admin.content.deleteConfirm'))) {
+                      deleteMutation.mutate(item.id)
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
           </div>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-white/50">每页</span>
-            <Select
-              value={String(pageSize)}
-              onValueChange={(v) => {
-                setPageSize(Number(v))
-                setPage(1)
-              }}
-            >
-              <SelectTrigger className="w-20 bg-white/5 border-white/10 text-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-900 border-white/10">
-                {[10, 20, 50, 100].map((n) => (
-                  <SelectItem key={n} value={String(n)} className="text-white hover:bg-white/10">
-                    {n}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* 表格 */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-violet-500 rounded-full animate-spin" />
-        </div>
-      ) : data?.items.length === 0 ? (
-        <div className="glass-card rounded-xl text-center py-16">
-          <FileText className="w-12 h-12 text-white/10 mx-auto mb-3" />
-          <p className="text-white/30">暂无内容</p>
-        </div>
-      ) : (
-        <div className="glass-card rounded-xl overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-white/5">
-                <th className="w-10 px-4 py-3">
-                  <Checkbox
-                    checked={selectedIds.size === data.items.length && data.items.length > 0}
-                    onCheckedChange={toggleSelectAll}
-                    className="border-white/20 data-[state=checked]:bg-violet-500 data-[state=checked]:border-violet-500"
-                  />
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider">
-                  标题
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider w-20">
-                  来源
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider w-20">
-                  平台
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider w-36">
-                  获取时间
-                </th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider w-16">
-                  操作
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/[0.03]">
-              {data?.items.map((item: any) => {
-                const stConfig =
-                  sourceTypeConfig[item.sourceType as keyof typeof sourceTypeConfig] ||
-                  sourceTypeConfig.api
-                return (
-                  <tr key={item.id} className="hover:bg-white/[0.03] transition-colors">
-                    <td className="px-4 py-3">
-                      <Checkbox
-                        checked={selectedIds.has(item.id)}
-                        onCheckedChange={() => toggleSelect(item.id)}
-                        className="border-white/20 data-[state=checked]:bg-violet-500 data-[state=checked]:border-violet-500"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <a
-                        href={item.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-white hover:text-violet-300 transition-colors flex items-center group max-w-lg"
-                      >
-                        <span className="truncate">{item.title}</span>
-                        <ExternalLink className="ml-1.5 h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </a>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge className={`text-xs border ${stConfig.className}`}>
-                        {stConfig.label}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-white/50">{item.platform}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-white/30">
-                        {item.fetchedAt
-                          ? new Date(item.fetchedAt).toLocaleString('zh-CN', {
-                              month: '2-digit',
-                              day: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })
-                          : '-'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-white/40 hover:text-red-400 hover:bg-red-500/10"
-                        onClick={() => {
-                          if (confirm('确定删除？')) deleteMutation.mutate(item.id)
-                        }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* 分页 */}
+      {/* Pagination */}
       {data && data.pagination.totalPages > 1 && (
-        <div className="flex items-center justify-center space-x-2 pt-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setPage(1)}
-            disabled={page <= 1}
-            className="text-white/50 hover:text-white hover:bg-white/10"
-          >
-            首页
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setPage(page - 1)}
-            disabled={page <= 1}
-            className="text-white/50 hover:text-white hover:bg-white/10"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-white/5">
-            <span className="text-sm text-white/70">{page}</span>
-            <span className="text-sm text-white/30">/</span>
-            <span className="text-sm text-white/50">{data.pagination.totalPages}</span>
+        <div className="flex items-center justify-between px-1">
+          <span className="text-xs text-muted-foreground">
+            {t('pagination.total', { total: data.pagination.total })}
+          </span>
+          <div className="flex items-center space-x-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPage(page - 1)}
+              disabled={page <= 1}
+              className="h-8 px-3"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-xs text-muted-foreground px-2">
+              {t('pagination.page', { current: page, total: data.pagination.totalPages })}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPage(page + 1)}
+              disabled={page >= data.pagination.totalPages}
+              className="h-8 px-3"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setPage(page + 1)}
-            disabled={page >= data.pagination.totalPages}
-            className="text-white/50 hover:text-white hover:bg-white/10"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setPage(data.pagination.totalPages)}
-            disabled={page >= data.pagination.totalPages}
-            className="text-white/50 hover:text-white hover:bg-white/10"
-          >
-            末页
-          </Button>
         </div>
       )}
     </div>

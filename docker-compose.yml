@@ -4,11 +4,11 @@ services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      - "8762:8762"
     volumes:
       - app-data:/app/backend/data
     environment:
-      - PORT=3000
+      - PORT=8762
       - HOST=0.0.0.0
       - NODE_ENV=production
       - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}

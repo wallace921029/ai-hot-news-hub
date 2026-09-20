@@ -1,75 +1,63 @@
-import { Outlet, Link, useNavigate } from 'react-router'
+import { Outlet, Link } from 'react-router'
 import { useUserStore } from '@/stores/user'
-import { Button } from '@/components/ui/button'
-import { LogOut, Star, LayoutDashboard, Sparkles } from 'lucide-react'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { LanguageSwitch } from '@/components/LanguageSwitch'
+import { UserMenu } from '@/components/UserMenu'
+import { Star, LayoutDashboard, Sparkles } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 export function MainLayout() {
-  const { user, isAdmin, logout } = useUserStore()
-  const navigate = useNavigate()
-
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
+  const { isAdmin } = useUserStore()
+  const { t } = useTranslation()
 
   return (
-    <div className="h-screen flex flex-col gradient-bg overflow-hidden">
-      {/* 顶部导航栏 */}
-      <header className="shrink-0 z-50 glass border-b border-white/[0.08]">
-        <div className="container flex h-16 items-center">
-          <Link to="/" className="mr-6 flex items-center space-x-3 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/25 group-hover:shadow-violet-500/40 transition-shadow">
-              <Sparkles className="w-4 h-4 text-white" />
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* Header */}
+      <header className="shrink-0 z-50 glass">
+        <div className="container flex h-14 items-center">
+          <Link to="/" className="mr-8 flex items-center space-x-2.5 group">
+            <div className="w-7 h-7 rounded-lg bg-foreground flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-background" />
             </div>
-            <span className="font-bold text-lg gradient-text">AI Hot News</span>
+            <span className="font-semibold text-base text-foreground">{t('common.appName')}</span>
           </Link>
 
-          <nav className="flex items-center space-x-1 mx-6">
+          <nav className="flex items-center space-x-1">
             <Link
               to="/"
-              className="px-4 py-2 text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+              className="px-3 py-1.5 text-sm font-medium text-foreground/70 hover:text-foreground hover:bg-accent/50 rounded-md transition-colors"
             >
-              首页
+              {t('nav.home')}
             </Link>
             <Link
               to="/favorites"
-              className="px-4 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-all flex items-center"
+              className="px-3 py-1.5 text-sm font-medium text-foreground/50 hover:text-foreground hover:bg-accent/50 rounded-md transition-colors flex items-center"
             >
-              <Star className="w-4 h-4 mr-1.5" />
-              收藏
+              <Star className="w-3.5 h-3.5 mr-1" />
+              {t('nav.favorites')}
             </Link>
             {isAdmin && (
               <Link
                 to="/admin"
-                className="px-4 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-all flex items-center"
+                className="px-3 py-1.5 text-sm font-medium text-foreground/50 hover:text-foreground hover:bg-accent/50 rounded-md transition-colors flex items-center"
               >
-                <LayoutDashboard className="w-4 h-4 mr-1.5" />
-                管理后台
+                <LayoutDashboard className="w-3.5 h-3.5 mr-1" />
+                {t('nav.admin')}
               </Link>
             )}
           </nav>
 
-          <div className="ml-auto flex items-center space-x-3">
-            <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-xs font-bold text-white">
-                {user?.username?.charAt(0).toUpperCase()}
-              </div>
-              <span className="text-sm text-white/70">{user?.username}</span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="text-white/60 hover:text-white hover:bg-white/10"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
+          <div className="ml-auto flex items-center space-x-1.5">
+            <ThemeToggle />
+            <LanguageSwitch />
+            <div className="h-5 w-px bg-border mx-1" />
+            <UserMenu />
           </div>
         </div>
       </header>
 
-      {/* 主体内容区 */}
-      <main className="flex-1 overflow-y-auto scrollbar-thin relative z-10">
+      {/* Main content */}
+      <main className="flex-1 overflow-y-auto scrollbar-thin">
         <div className="container py-6">
           <Outlet />
         </div>

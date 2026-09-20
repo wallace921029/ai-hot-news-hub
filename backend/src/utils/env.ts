@@ -4,7 +4,7 @@ import { z } from 'zod'
 config()
 
 const envSchema = z.object({
-  PORT: z.coerce.number().default(3000),
+  PORT: z.coerce.number().default(8762),
   HOST: z.string().default('0.0.0.0'),
   JWT_SECRET: z.string().default('change-this-secret-in-production'),
   AI_API_KEY: z.string().optional(),

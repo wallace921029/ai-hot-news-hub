@@ -418,7 +418,7 @@ npm run build
 docker-compose up -d
 
 # 访问服务
-open http://localhost:3000
+open http://localhost:8762
 ```
 
 ### 9.3 运维要点

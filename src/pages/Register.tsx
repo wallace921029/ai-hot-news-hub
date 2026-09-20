@@ -4,8 +4,12 @@ import { useUserStore } from '@/stores/user'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { Sparkles, Mail, Lock, User, Ticket, ArrowRight } from 'lucide-react'
+import { Sparkles, Mail, Lock, User, ArrowRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { LanguageSwitch } from '@/components/LanguageSwitch'
 
 export function RegisterPage() {
   const [username, setUsername] = useState('')
@@ -15,6 +19,7 @@ export function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const { register } = useUserStore()
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -22,148 +27,186 @@ export function RegisterPage() {
 
     try {
       await register(username, email, password, inviteCode)
-      toast.success('注册成功')
+      toast.success(t('auth.registerSuccess'))
       navigate('/')
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '注册失败')
+      toast.error(error instanceof Error ? error.message : t('auth.registerFailed'))
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen gradient-bg flex items-center justify-center p-4 relative overflow-hidden">
-      {/* 装饰性背景元素 */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-violet-500/20 rounded-full blur-3xl animate-float" />
-        <div
-          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-fuchsia-500/20 rounded-full blur-3xl animate-float"
-          style={{ animationDelay: '-3s' }}
-        />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-500/10 rounded-full blur-3xl" />
-      </div>
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
+      {/* Theme & Language controls */}
+      <motion.div
+        className="absolute top-4 right-4 flex items-center space-x-2 z-20"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <ThemeToggle />
+        <LanguageSwitch />
+      </motion.div>
 
-      {/* 注册卡片 */}
-      <div className="relative z-10 w-full max-w-md">
-        <div className="glass rounded-2xl p-8 shadow-2xl shadow-black/50">
+      {/* Register card */}
+      <motion.div
+        className="relative z-10 w-full max-w-sm"
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+      >
+        <div className="rounded-2xl border bg-card text-card-foreground shadow-lg p-8">
           {/* Logo */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/25 mb-4">
-              <Sparkles className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold gradient-text mb-2">AI Hot News</h1>
-            <p className="text-white/50">创建新账号</p>
-          </div>
+          <motion.div
+            className="text-center mb-8"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+          >
+            <motion.div
+              className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-foreground mb-4"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Sparkles className="w-7 h-7 text-background" />
+            </motion.div>
+            <h1 className="text-2xl font-semibold text-foreground tracking-tight">
+              {t('common.appName')}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">{t('auth.registerTitle')}</p>
+          </motion.div>
 
-          {/* 表单 */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Form */}
+          <motion.form
+            onSubmit={handleSubmit}
+            className="space-y-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+          >
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-white/70 text-sm">
-                用户名
+              <Label htmlFor="username" className="text-sm font-medium">
+                {t('auth.username')}
               </Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="username"
-                  placeholder="请输入用户名"
+                  type="text"
+                  placeholder={t('auth.usernamePlaceholder')}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-violet-500/50 focus:ring-violet-500/20 h-11"
+                  className="pl-10 h-11 bg-background/50"
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-white/70 text-sm">
-                邮箱
+              <Label htmlFor="email" className="text-sm font-medium">
+                {t('auth.email')}
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
-                  placeholder="请输入邮箱"
+                  placeholder={t('auth.emailPlaceholder')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-violet-500/50 focus:ring-violet-500/20 h-11"
+                  className="pl-10 h-11 bg-background/50"
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-white/70 text-sm">
-                密码
+              <Label htmlFor="password" className="text-sm font-medium">
+                {t('auth.password')}
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="password"
                   type="password"
-                  placeholder="请输入密码（至少 6 位）"
+                  placeholder={t('auth.passwordPlaceholder')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-violet-500/50 focus:ring-violet-500/20 h-11"
-                  minLength={6}
+                  className="pl-10 h-11 bg-background/50"
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="inviteCode" className="text-white/70 text-sm">
-                邀请码
+              <Label htmlFor="inviteCode" className="text-sm font-medium">
+                {t('auth.inviteCode')}
               </Label>
               <div className="relative">
-                <Ticket className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="inviteCode"
-                  placeholder="请输入邀请码"
+                  type="text"
+                  placeholder={t('auth.inviteCodePlaceholder')}
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
-                  className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-violet-500/50 focus:ring-violet-500/20 h-11"
+                  className="pl-10 h-11 bg-background/50"
                   required
                 />
               </div>
             </div>
 
-            <Button
-              type="submit"
-              className="w-full h-11 bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white font-medium rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all duration-300"
-              disabled={loading}
-            >
-              {loading ? (
-                <div className="flex items-center">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                  注册中...
-                </div>
-              ) : (
-                <div className="flex items-center">
-                  注册
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </div>
-              )}
-            </Button>
-          </form>
+            <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+              <Button
+                type="submit"
+                className="w-full h-11 bg-foreground text-background hover:bg-foreground/90 font-medium rounded-xl transition-colors"
+                disabled={loading}
+              >
+                {loading ? (
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 border-2 border-background/30 border-t-background rounded-full animate-spin mr-2" />
+                    {t('common.loading')}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center">
+                    {t('auth.register')}
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </div>
+                )}
+              </Button>
+            </motion.div>
+          </motion.form>
 
-          {/* 登录链接 */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-white/40">
-              已有账号？{' '}
+          {/* Login link */}
+          <motion.div
+            className="mt-6 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+          >
+            <p className="text-sm text-muted-foreground">
+              {t('auth.hasAccount')}{' '}
               <Link
                 to="/login"
-                className="text-violet-400 hover:text-violet-300 transition-colors font-medium"
+                className="text-foreground hover:text-foreground/80 transition-colors font-medium underline underline-offset-4"
               >
-                登录
+                {t('auth.login')}
               </Link>
             </p>
-          </div>
+          </motion.div>
         </div>
 
-        {/* 底部装饰 */}
-        <p className="text-center text-xs text-white/20 mt-6">AI Hot News Hub © 2026</p>
-      </div>
+        {/* Footer */}
+        <motion.p
+          className="text-center text-xs text-muted-foreground/60 mt-8"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+        >
+          AI Hot News Hub &copy; 2026
+        </motion.p>
+      </motion.div>
     </div>
   )
 }

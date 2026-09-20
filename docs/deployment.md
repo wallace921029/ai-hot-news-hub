@@ -94,11 +94,11 @@ services:
   app:
     build: .
     ports:
-      - '3000:3000'
+      - '8762:8762'
     volumes:
       - app-data:/app/backend/data
     environment:
-      - PORT=3000
+      - PORT=8762
       - HOST=0.0.0.0
       - NODE_ENV=production
       - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
@@ -166,12 +166,12 @@ COPY backend/src/db ./backend/src/db
 RUN mkdir -p /app/backend/data
 
 # 环境变量
-ENV PORT=3000
+ENV PORT=8762
 ENV HOST=0.0.0.0
 ENV NODE_ENV=production
 
 # 暴露端口
-EXPOSE 3000
+EXPOSE 8762
 
 # 启动服务
 WORKDIR /app/backend
@@ -275,7 +275,7 @@ cd ..
 
 ```bash
 # 服务配置
-PORT=3000
+PORT=8762
 HOST=0.0.0.0
 NODE_ENV=production
 
@@ -319,7 +319,7 @@ server {
 
     # API 代理
     location /api {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:8762;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -422,7 +422,7 @@ docker-compose up -d
 #!/bin/bash
 # healthcheck.sh
 
-URL="http://localhost:3000/api/news?page=1&pageSize=1"
+URL="http://localhost:8762/api/news?page=1&pageSize=1"
 RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" $URL)
 
 if [ $RESPONSE -eq 200 ]; then
@@ -442,7 +442,7 @@ services:
   app:
     build: .
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/api/news?page=1&pageSize=1']
+      test: ['CMD', 'curl', '-f', 'http://localhost:8762/api/news?page=1&pageSize=1']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -489,7 +489,7 @@ VACUUM;
 
 ```bash
 # 1. 检查端口占用
-lsof -i :3000
+lsof -i :8762
 
 # 2. 检查日志
 docker-compose logs
@@ -524,7 +524,7 @@ npm run db:seed
 
 ```bash
 # 1. 测试 API 连通性
-curl http://localhost:3000/api/news?page=1&pageSize=1
+curl http://localhost:8762/api/news?page=1&pageSize=1
 
 # 2. 检查防火墙设置
 sudo ufw status
@@ -768,8 +768,8 @@ location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
 | ---- | ------- | ---------------------------- |
 | 80   | Nginx   | HTTP 访问                    |
 | 443  | Nginx   | HTTPS 访问                   |
-| 3000 | Fastify | 后端 API 服务                |
-| 5173 | Vite    | 前端开发服务器（仅开发环境） |
+| 8762 | Fastify | 后端 API 服务                |
+| 8763 | Vite    | 前端开发服务器（仅开发环境） |
 
 ### B. 目录结构
 

@@ -37,12 +37,12 @@ COPY backend/src/db ./backend/src/db
 RUN mkdir -p /app/backend/data
 
 # Environment variables
-ENV PORT=3000
+ENV PORT=8762
 ENV HOST=0.0.0.0
 ENV NODE_ENV=production
 
 # Expose port
-EXPOSE 3000
+EXPOSE 8762
 
 # Start backend
 WORKDIR /app/backend

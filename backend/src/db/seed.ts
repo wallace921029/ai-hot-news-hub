@@ -220,6 +220,27 @@ const defaultSources = [
     fetchInterval: 60,
     description: '返回飙升榜',
   },
+
+  // 新增数据源
+  {
+    name: 'Hacker News',
+    type: 'rss' as const,
+    url: 'https://news.ycombinator.com/rss',
+    parser: 'hackernews',
+    enabled: true,
+    fetchInterval: 30,
+    description: '全球最热门的技术新闻和创业资讯',
+  },
+  {
+    name: 'V2EX 热门',
+    type: 'rest' as const,
+    url: 'https://www.v2ex.com/api/topics/hot.json',
+    method: 'GET' as const,
+    parser: 'v2ex',
+    enabled: true,
+    fetchInterval: 30,
+    description: 'V2EX 开发者社区热门话题',
+  },
 ]
 
 export async function seedDataSources() {

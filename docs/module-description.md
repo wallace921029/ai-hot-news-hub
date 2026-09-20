@@ -1181,7 +1181,7 @@ interface ErrorResponse {
 
 | 变量名        | 说明            | 默认值      |
 | ------------- | --------------- | ----------- |
-| `PORT`        | 服务端口        | 3000        |
+| `PORT`        | 服务端口        | 8762        |
 | `JWT_SECRET`  | JWT 签名密钥    | -           |
 | `AI_BASE_URL` | AI API 基础地址 | -           |
 | `AI_API_KEY`  | AI API 密钥     | -           |

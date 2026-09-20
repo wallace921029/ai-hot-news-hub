@@ -157,8 +157,11 @@ export async function sourceRoutes(app: FastifyInstance) {
               status: 'processed',
             })
             savedCount++
-          } catch {
-            // 忽略重复记录
+          } catch (insertError) {
+            // 记录插入错误以便调试
+            if (insertError instanceof Error && !insertError.message.includes('UNIQUE')) {
+              console.error(`⚠️ 插入失败 [${source.name}]: ${item.title} - ${insertError.message}`)
+            }
           }
         }
 

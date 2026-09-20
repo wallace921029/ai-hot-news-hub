@@ -7,7 +7,6 @@ interface PlatformParser {
 // 知乎热榜
 const zhihuParser: PlatformParser = {
   parse(data, source) {
-    // 知乎热榜格式
     const hotListData = data as {
       data: Array<{ target: { title: string; url: string; excerpt?: string } }>
     }
@@ -21,21 +20,25 @@ const zhihuParser: PlatformParser = {
         fetchedAt: new Date(),
       }))
     }
-    // 知乎日报格式
-    const dailyData = data as {
-      stories: Array<{ title: string; url: string; hint?: string; images?: string[] }>
-    }
-    if (dailyData.stories && Array.isArray(dailyData.stories)) {
-      return dailyData.stories.map((item) => ({
-        sourceId: source.id,
-        platform: 'zhihu',
-        title: item.title,
-        url: item.url,
-        description: item.hint,
-        fetchedAt: new Date(),
-      }))
-    }
     return []
+  },
+}
+
+// 知乎日报
+const zhihuDailyParser: PlatformParser = {
+  parse(data, source) {
+    const dailyData = data as {
+      stories: Array<{ id: number; title: string; url: string; hint?: string }>
+    }
+    if (!dailyData.stories || !Array.isArray(dailyData.stories)) return []
+    return dailyData.stories.map((item) => ({
+      sourceId: source.id,
+      platform: 'zhihu',
+      title: item.title,
+      url: item.url,
+      description: item.hint,
+      fetchedAt: new Date(),
+    }))
   },
 }
 
@@ -118,7 +121,7 @@ const juejinParser: PlatformParser = {
           platform: 'juejin',
           title: article.title,
           url: article.link_url || `https://juejin.cn/post/${article.article_id}`,
-          description: article.brief_content,
+          description: article.brief_content?.substring(0, 200),
           hotScore: article.digg_count,
           fetchedAt: new Date(),
         }
@@ -200,18 +203,11 @@ const huggingfaceParser: PlatformParser = {
   },
 }
 
-// 机器之心
+// 机器之心 - API 已不可用，改用 RSS
 const jiqizhixinParser: PlatformParser = {
-  parse(data, source) {
-    const items = (data as { data: Array<{ title: string; slug: string; summary?: string }> }).data
-    return items.map((item) => ({
-      sourceId: source.id,
-      platform: 'jiqizhixin',
-      title: item.title,
-      url: `https://www.jiqizhixin.com/articles/${item.slug}`,
-      description: item.summary,
-      fetchedAt: new Date(),
-    }))
+  parse() {
+    // 机器之心 API 已返回 HTML 页面，无法解析
+    return []
   },
 }
 
@@ -224,7 +220,6 @@ const kr36Parser: PlatformParser = {
           itemId: number
           templateMaterial: {
             widgetTitle: string
-            widgetContent?: { itemId: number }
           }
         }>
       }
@@ -258,7 +253,7 @@ const doubanParser: PlatformParser = {
   },
 }
 
-// 澎湃新闻
+// 澎湃新闻 - 使用 REST API
 const thepaperParser: PlatformParser = {
   parse(data, source) {
     const response = data as {
@@ -325,9 +320,39 @@ const wereadParser: PlatformParser = {
   },
 }
 
+// V2EX 热门话题
+const v2exParser: PlatformParser = {
+  parse(data, source) {
+    const items = data as Array<{
+      id: number
+      title: string
+      url: string
+      content?: string
+      node?: { title: string }
+      member?: { username: string }
+      replies?: number
+    }>
+    if (!Array.isArray(items)) return []
+    return items.map((item) => ({
+      sourceId: source.id,
+      platform: 'v2ex',
+      title: item.title,
+      url: item.url || `https://www.v2ex.com/t/${item.id}`,
+      description: item.content
+        ? item.content.replace(/<[^>]*>/g, '').substring(0, 200)
+        : undefined,
+      author: item.member?.username,
+      hotScore: item.replies,
+      metadata: { node: item.node?.title },
+      fetchedAt: new Date(),
+    }))
+  },
+}
+
 // 解析器映射
 const parsers: Record<string, PlatformParser> = {
   zhihu: zhihuParser,
+  'zhihu-daily': zhihuDailyParser,
   weibo: weiboParser,
   bilibili: bilibiliParser,
   toutiao: toutiaoParser,
@@ -341,6 +366,7 @@ const parsers: Record<string, PlatformParser> = {
   thepaper: thepaperParser,
   sspai: sspaiParser,
   weread: wereadParser,
+  v2ex: v2exParser,
 }
 
 export class RestFetcher implements Fetcher {
@@ -373,6 +399,7 @@ export class RestFetcher implements Fetcher {
   private detectParser(url: string): string | null {
     const urlMap: [string, string][] = [
       ['api.zhihu.com', 'zhihu'],
+      ['news-at.zhihu.com', 'zhihu-daily'],
       ['weibo.com', 'weibo'],
       ['bilibili.com', 'bilibili'],
       ['toutiao.com', 'toutiao'],
@@ -385,6 +412,7 @@ export class RestFetcher implements Fetcher {
       ['douban.com', 'douban'],
       ['sspai.com', 'sspai'],
       ['weread.qq.com', 'weread'],
+      ['v2ex.com', 'v2ex'],
     ]
 
     for (const [domain, parser] of urlMap) {

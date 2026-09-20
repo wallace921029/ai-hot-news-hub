@@ -1,6 +1,8 @@
-import { Outlet, Link, useNavigate, useLocation } from 'react-router'
-import { useUserStore } from '@/stores/user'
+import { Outlet, Link, useLocation } from 'react-router'
 import { Button } from '@/components/ui/button'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { LanguageSwitch } from '@/components/LanguageSwitch'
+import { UserMenu } from '@/components/UserMenu'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
@@ -10,76 +12,78 @@ import {
   Settings,
   ScrollText,
   ArrowLeft,
-  LogOut,
   Sparkles,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react'
-
-const navItems = [
-  { path: '/admin', label: '仪表盘', icon: LayoutDashboard },
-  { path: '/admin/sources', label: '数据源', icon: Database },
-  { path: '/admin/users', label: '用户管理', icon: Users },
-  { path: '/admin/content', label: '内容管理', icon: FileText },
-  { path: '/admin/config', label: '系统配置', icon: Settings },
-  { path: '/admin/logs', label: '日志查看', icon: ScrollText },
-]
+import { useTranslation } from 'react-i18next'
+import { useState } from 'react'
 
 export function AdminLayout() {
-  const { user, logout } = useUserStore()
-  const navigate = useNavigate()
   const location = useLocation()
+  const { t } = useTranslation()
+  const [collapsed, setCollapsed] = useState(false)
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
+  const navItems = [
+    { path: '/admin', label: t('admin.dashboard.title'), icon: LayoutDashboard },
+    { path: '/admin/sources', label: t('admin.sources.title'), icon: Database },
+    { path: '/admin/users', label: t('admin.users.title'), icon: Users },
+    { path: '/admin/content', label: t('admin.content.title'), icon: FileText },
+    { path: '/admin/config', label: t('admin.config.title'), icon: Settings },
+    { path: '/admin/logs', label: t('admin.logs.title'), icon: ScrollText },
+  ]
 
   return (
-    <div className="h-screen flex flex-col gradient-bg overflow-hidden">
-      {/* 顶部导航栏 */}
-      <header className="shrink-0 z-50 glass border-b border-white/[0.08]">
-        <div className="container flex h-16 items-center">
-          <Link to="/admin" className="mr-6 flex items-center space-x-3 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/25">
-              <Sparkles className="w-4 h-4 text-white" />
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* Header */}
+      <header className="shrink-0 z-50 glass">
+        <div className="flex h-14 items-center px-4 lg:px-6">
+          {/* Left: Logo */}
+          <Link to="/admin" className="flex items-center space-x-2.5 group">
+            <div className="w-7 h-7 rounded-lg bg-foreground flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-background" />
             </div>
-            <span className="font-bold text-lg gradient-text">管理后台</span>
+            <span className="font-semibold text-base text-foreground">{t('nav.admin')}</span>
           </Link>
 
-          <div className="ml-auto flex items-center space-x-3">
-            <Link to="/">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white/70 hover:text-white hover:bg-white/10"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                返回前台
-              </Button>
-            </Link>
-            <div className="h-6 w-px bg-white/10" />
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-xs font-bold text-white">
-                {user?.username?.charAt(0).toUpperCase()}
-              </div>
-              <span className="text-sm text-white/70">{user?.username}</span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="text-white/70 hover:text-white hover:bg-white/10"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
+          {/* Right: Actions */}
+          <div className="ml-auto flex items-center space-x-1.5">
+            <ThemeToggle />
+            <LanguageSwitch />
+            <div className="h-5 w-px bg-border mx-1" />
+            <UserMenu />
           </div>
         </div>
       </header>
 
-      {/* 主体区域 */}
-      <div className="flex flex-1 min-h-0 relative z-10">
-        {/* 左侧菜单 */}
-        <aside className="w-64 shrink-0 glass-light border-r border-white/[0.06] overflow-y-auto scrollbar-thin">
-          <nav className="space-y-1 p-4">
+      {/* Main area */}
+      <div className="flex flex-1 min-h-0 relative">
+        {/* Sidebar */}
+        <aside
+          className={cn(
+            'shrink-0 border-r bg-card/50 flex flex-col transition-all duration-300',
+            collapsed ? 'w-16' : 'w-56'
+          )}
+        >
+          {/* Top: Collapse button */}
+          <div className="p-2 border-b">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="w-full h-8 text-foreground/40 hover:text-foreground"
+              onClick={() => setCollapsed(!collapsed)}
+            >
+              {collapsed ? (
+                <PanelLeftOpen className="w-4 h-4" />
+              ) : (
+                <PanelLeftClose className="w-4 h-4" />
+              )}
+            </Button>
+          </div>
+
+          {/* Nav items */}
+          <nav className="flex-1 overflow-y-auto scrollbar-sidebar space-y-0.5 p-2">
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive =
@@ -91,24 +95,44 @@ export function AdminLayout() {
                 <Link
                   key={item.path}
                   to={item.path}
+                  title={collapsed ? item.label : undefined}
                   className={cn(
-                    'flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200',
+                    'flex items-center rounded-lg transition-colors duration-150',
+                    collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2',
                     isActive
-                      ? 'bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 text-white border border-white/10 shadow-lg shadow-violet-500/10'
-                      : 'text-white/60 hover:bg-white/5 hover:text-white'
+                      ? 'bg-accent text-foreground font-medium'
+                      : 'text-foreground/60 hover:bg-accent/50 hover:text-foreground'
                   )}
                 >
-                  <Icon className={cn('w-5 h-5 mr-3', isActive && 'text-violet-400')} />
-                  {item.label}
+                  <Icon
+                    className={cn('w-4 h-4', !collapsed && 'mr-2.5', isActive && 'text-foreground')}
+                  />
+                  {!collapsed && <span className="text-sm">{item.label}</span>}
                 </Link>
               )
             })}
           </nav>
+
+          {/* Bottom: Back to site */}
+          <div className="p-2 border-t">
+            <Link to="/">
+              <Button
+                variant="ghost"
+                className={cn(
+                  'w-full text-foreground/50 hover:text-foreground',
+                  collapsed ? 'justify-center px-2 h-9' : 'justify-start px-3 h-9'
+                )}
+              >
+                <ArrowLeft className={cn('w-4 h-4', !collapsed && 'mr-2')} />
+                {!collapsed && <span className="text-sm">{t('nav.backToFront')}</span>}
+              </Button>
+            </Link>
+          </div>
         </aside>
 
-        {/* 右侧内容区 */}
+        {/* Content */}
         <main className="flex-1 overflow-y-auto scrollbar-thin">
-          <div className="p-6">
+          <div className="px-4 lg:px-6 py-6 max-w-[1600px]">
             <Outlet />
           </div>
         </main>

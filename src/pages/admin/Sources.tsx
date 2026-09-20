@@ -27,6 +27,7 @@ import {
   CheckCircle2,
   Clock,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { DataSource } from '@/types'
 
 interface RssForm {
@@ -48,27 +49,19 @@ const defaultRssForm: RssForm = {
 }
 
 function getStatusIcon(source: DataSource) {
-  if (source.lastError) return <AlertCircle className="h-3.5 w-3.5 text-red-400" />
-  if (source.lastFetchAt) return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-  return <Clock className="h-3.5 w-3.5 text-white/30" />
-}
-
-function getTimeAgo(dateStr: string | null) {
-  if (!dateStr) return '未抓取'
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
-  if (diff < 60) return '刚刚'
-  if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`
-  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`
-  return `${Math.floor(diff / 86400)} 天前`
+  if (source.lastError) return <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+  if (source.lastFetchAt) return <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+  return <Clock className="h-3.5 w-3.5 text-muted-foreground/30" />
 }
 
 export function AdminSources() {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingSource, setEditingSource] = useState<DataSource | null>(null)
   const [form, setForm] = useState<RssForm>(defaultRssForm)
+  const [fetchingId, setFetchingId] = useState<number | null>(null)
+  const [fetchingAll, setFetchingAll] = useState(false)
 
   const { data: sources, isLoading } = useQuery({
     queryKey: ['admin-sources'],
@@ -83,13 +76,13 @@ export function AdminSources() {
     mutationFn: (data: typeof defaultRssForm) =>
       api.createSource({ ...data, type: 'rss', method: 'GET' }),
     onSuccess: () => {
-      toast.success('创建成功')
+      toast.success(t('admin.sources.createSuccess'))
       queryClient.invalidateQueries({ queryKey: ['admin-sources'] })
       setDialogOpen(false)
       setForm(defaultRssForm)
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '创建失败')
+      toast.error(error instanceof Error ? error.message : t('admin.sources.createFailed'))
     },
   })
 
@@ -97,35 +90,61 @@ export function AdminSources() {
     mutationFn: ({ id, data }: { id: number; data: Partial<DataSource> }) =>
       api.updateSource(id, data),
     onSuccess: () => {
-      toast.success('更新成功')
+      toast.success(t('admin.sources.updateSuccess'))
       queryClient.invalidateQueries({ queryKey: ['admin-sources'] })
       setDialogOpen(false)
       setEditingSource(null)
       setForm(defaultRssForm)
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '更新失败')
+      toast.error(error instanceof Error ? error.message : t('admin.sources.updateFailed'))
     },
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.deleteSource(id),
     onSuccess: () => {
-      toast.success('删除成功')
+      toast.success(t('admin.sources.deleteSuccess'))
       queryClient.invalidateQueries({ queryKey: ['admin-sources'] })
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '删除失败')
+      toast.error(error instanceof Error ? error.message : t('admin.sources.deleteFailed'))
+    },
+  })
+
+  const fetchAllMutation = useMutation({
+    mutationFn: () => api.fetchAllContent(),
+    onMutate: () => {
+      setFetchingAll(true)
+    },
+    onSuccess: () => {
+      toast.success(t('admin.sources.fetchTriggered'))
+      queryClient.invalidateQueries({ queryKey: ['admin-sources'] })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : t('common.failed'))
+    },
+    onSettled: () => {
+      // 延迟清除，让用户能看到旋转动画
+      setTimeout(() => setFetchingAll(false), 500)
     },
   })
 
   const fetchMutation = useMutation({
     mutationFn: (id: number) => api.fetchSource(id),
+    onMutate: (id) => {
+      setFetchingId(id)
+    },
     onSuccess: () => {
-      toast.success('抓取任务已触发')
+      toast.success(t('admin.sources.fetchTriggered'))
+      queryClient.invalidateQueries({ queryKey: ['admin-sources'] })
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '触发失败')
+      toast.error(error instanceof Error ? error.message : t('common.failed'))
+    },
+    onSettled: () => {
+      // 延迟清除，让用户能看到旋转动画
+      setTimeout(() => setFetchingId(null), 500)
     },
   })
 
@@ -133,15 +152,33 @@ export function AdminSources() {
     mutationFn: (id: number) => api.testSource(id),
     onSuccess: (data) => {
       if (data.success) {
-        toast.success(`连通性测试成功 (${data.status})`)
+        toast.success(`${t('admin.sources.testSuccess')} (${data.status})`)
       } else {
-        toast.error(`连通性测试失败: ${data.error || data.statusText}`)
+        toast.error(`${t('admin.sources.testFailed')}: ${data.error || data.statusText}`)
       }
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '测试失败')
+      toast.error(error instanceof Error ? error.message : t('admin.sources.testFailed'))
     },
   })
+
+  const handleFetch = (e: React.MouseEvent, id: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+    fetchMutation.mutate(id)
+  }
+
+  const handleFetchAll = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    fetchAllMutation.mutate()
+  }
+
+  const handleTest = (e: React.MouseEvent, id: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+    testMutation.mutate(id)
+  }
 
   const handleSubmit = () => {
     if (editingSource) {
@@ -164,72 +201,82 @@ export function AdminSources() {
     setDialogOpen(true)
   }
 
+  const getTimeAgo = (dateStr: string | null) => {
+    if (!dateStr) return t('admin.sources.neverFetched')
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
+    if (diff < 60) return t('time.justNow')
+    if (diff < 3600) return t('time.minutesAgo', { count: Math.floor(diff / 60) })
+    if (diff < 86400) return t('time.hoursAgo', { count: Math.floor(diff / 3600) })
+    return t('time.daysAgo', { count: Math.floor(diff / 86400) })
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-white/20 border-t-violet-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-muted border-t-primary rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      {/* 标题 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">数据源管理</h1>
-          <p className="text-sm text-white/40 mt-1">共 {sources?.length || 0} 个数据源</p>
+          <h1 className="text-2xl font-bold text-foreground">{t('admin.sources.title')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {t('admin.sources.total', { count: sources?.length || 0 })}
+          </p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button
+              type="button"
               onClick={() => {
                 setEditingSource(null)
                 setForm(defaultRssForm)
               }}
-              className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+              className="bg-foreground text-background hover:bg-foreground/90"
             >
               <Plus className="h-4 w-4 mr-2" />
-              添加 RSS 订阅
+              {t('admin.sources.addRss')}
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-gray-900 border-white/10">
+          <DialogContent>
             <DialogHeader>
-              <DialogTitle className="text-white">
-                {editingSource ? '编辑 RSS 订阅' : '添加 RSS 订阅'}
+              <DialogTitle>
+                {editingSource ? t('admin.sources.editRss') : t('admin.sources.addRss')}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-white/70">名称</Label>
+                <Label>{t('admin.sources.name')}</Label>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="RSS 订阅名称"
-                  className="bg-white/5 border-white/10 text-white"
+                  placeholder={t('admin.sources.name')}
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-white/70">URL</Label>
+                <Label>{t('admin.sources.url')}</Label>
                 <Input
                   value={form.url}
                   onChange={(e) => setForm({ ...form, url: e.target.value })}
                   placeholder="https://example.com/feed"
-                  className="bg-white/5 border-white/10 text-white"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-white/70">解析器标识</Label>
+                <Label>{t('admin.sources.parserId')}</Label>
                 <Input
                   value={form.parser}
                   onChange={(e) => setForm({ ...form, parser: e.target.value })}
-                  placeholder="可选，如 qbitai"
-                  className="bg-white/5 border-white/10 text-white"
+                  placeholder={t('admin.sources.parserPlaceholder')}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-white/70">抓取间隔（分钟）</Label>
+                  <Label>{t('admin.sources.fetchInterval')}</Label>
                   <Input
                     type="number"
                     value={form.fetchInterval}
@@ -237,16 +284,14 @@ export function AdminSources() {
                       setForm({ ...form, fetchInterval: parseInt(e.target.value) || 30 })
                     }
                     min={5}
-                    className="bg-white/5 border-white/10 text-white"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-white/70">描述</Label>
+                  <Label>{t('admin.sources.description')}</Label>
                   <Input
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    placeholder="可选"
-                    className="bg-white/5 border-white/10 text-white"
+                    placeholder={t('common.more')}
                   />
                 </div>
               </div>
@@ -255,142 +300,140 @@ export function AdminSources() {
                   checked={form.enabled}
                   onCheckedChange={(checked) => setForm({ ...form, enabled: checked })}
                 />
-                <Label className="text-white/70">启用</Label>
+                <Label>{t('admin.sources.enabled')}</Label>
               </div>
               <Button
+                type="button"
                 onClick={handleSubmit}
-                className="w-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
+                className="w-full bg-foreground text-background hover:bg-foreground/90"
               >
-                {editingSource ? '保存' : '创建'}
+                {editingSource ? t('common.save') : t('common.create')}
               </Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Tabs */}
       <Tabs defaultValue="rss">
         <div className="flex items-center justify-between">
-          <TabsList className="bg-white/5 border border-white/10">
-            <TabsTrigger
-              value="rss"
-              className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50"
-            >
-              <Rss className="h-4 w-4 mr-2 text-orange-400" />
-              RSS 订阅
-              <Badge variant="secondary" className="ml-2 bg-white/10 text-white/50 text-xs">
+          <TabsList>
+            <TabsTrigger value="rss">
+              <Rss className="h-4 w-4 mr-2 text-orange-500" />
+              {t('admin.sources.rssSubscriptions')}
+              <Badge variant="secondary" className="ml-2 text-xs">
                 {rssSources.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger
-              value="api"
-              className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50"
-            >
-              <Globe className="h-4 w-4 mr-2 text-violet-400" />
-              API 数据源
-              <Badge variant="secondary" className="ml-2 bg-white/10 text-white/50 text-xs">
+            <TabsTrigger value="api">
+              <Globe className="h-4 w-4 mr-2 text-violet-500" />
+              {t('admin.sources.apiDataSources')}
+              <Badge variant="secondary" className="ml-2 text-xs">
                 {apiSources.length}
               </Badge>
               {apiSourcesWithErrors.length > 0 && (
-                <Badge variant="secondary" className="ml-1 bg-red-500/20 text-red-400 text-xs">
-                  {apiSourcesWithErrors.length} 异常
+                <Badge variant="destructive" className="ml-1 text-xs">
+                  {apiSourcesWithErrors.length}
                 </Badge>
               )}
             </TabsTrigger>
           </TabsList>
         </div>
 
-        {/* RSS Tab */}
         <TabsContent value="rss">
-          <div className="glass-card rounded-xl p-5">
+          <div className="rounded-xl border bg-card text-card-foreground p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-white/60">RSS 订阅源</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">
+                {t('admin.sources.rssSubscriptions')}
+              </h3>
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
-                className="text-white/50 hover:text-white hover:bg-white/10"
-                onClick={() => {
-                  const ids = rssSources.filter((s) => s.enabled).map((s) => s.id)
-                  ids.forEach((id) => fetchMutation.mutate(id))
-                  toast.success(`正在获取 ${ids.length} 个 RSS 源...`)
-                }}
+                onClick={handleFetchAll}
+                disabled={fetchingAll}
               >
-                <RefreshCw className="h-4 w-4 mr-1.5" />
-                获取全部
+                <RefreshCw className={`h-4 w-4 mr-1.5 ${fetchingAll ? 'animate-spin' : ''}`} />
+                {t('admin.sources.fetchAll')}
               </Button>
             </div>
             {rssSources.length === 0 ? (
-              <p className="text-sm text-white/30 py-8 text-center">
-                暂无 RSS 订阅，点击右上角按钮添加
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                {t('admin.sources.noRss')}
               </p>
             ) : (
               <div className="space-y-1.5">
                 {rssSources.map((source) => (
                   <div
                     key={source.id}
-                    className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-colors group"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
                   >
                     <div className="flex items-center space-x-3 min-w-0">
                       {getStatusIcon(source)}
                       <div className="min-w-0">
                         <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-white truncate">
+                          <span className="text-sm font-medium text-foreground truncate">
                             {source.name}
                           </span>
                           {!source.enabled && (
-                            <Badge
-                              variant="secondary"
-                              className="text-[10px] px-1.5 py-0 bg-white/10 text-white/40"
-                            >
-                              禁用
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                              {t('admin.sources.disabled')}
                             </Badge>
                           )}
                         </div>
-                        <p className="text-xs text-white/30 truncate mt-0.5">{source.url}</p>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                          {source.url}
+                        </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="text-xs text-white/30 mr-2">
+                    <div className="flex items-center space-x-1">
+                      <span className="text-xs text-muted-foreground mr-2">
                         {getTimeAgo(source.lastFetchAt)}
                       </span>
                       <Button
+                        type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-7 w-7 p-0 text-white/40 hover:text-white hover:bg-white/10"
-                        onClick={() => testMutation.mutate(source.id)}
-                        title="测试连通性"
+                        className="h-7 w-7 p-0"
+                        onClick={(e) => handleTest(e, source.id)}
+                        title={t('admin.sources.testConnectivity')}
                       >
                         <Wifi className="h-3.5 w-3.5" />
                       </Button>
                       <Button
+                        type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-7 w-7 p-0 text-white/40 hover:text-white hover:bg-white/10"
-                        onClick={() => fetchMutation.mutate(source.id)}
-                        title="手动抓取"
+                        className="h-7 w-7 p-0"
+                        onClick={(e) => handleFetch(e, source.id)}
+                        disabled={fetchingId === source.id}
+                        title={t('admin.sources.manualFetch')}
                       >
-                        <RefreshCw className="h-3.5 w-3.5" />
+                        <RefreshCw
+                          className={`h-3.5 w-3.5 ${fetchingId === source.id ? 'animate-spin' : ''}`}
+                        />
                       </Button>
                       <Button
+                        type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-7 w-7 p-0 text-white/40 hover:text-white hover:bg-white/10"
+                        className="h-7 w-7 p-0"
                         onClick={() => handleEdit(source)}
-                        title="编辑"
+                        title={t('common.edit')}
                       >
                         <Edit className="h-3.5 w-3.5" />
                       </Button>
                       <Button
+                        type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-7 w-7 p-0 text-white/40 hover:text-red-400 hover:bg-red-500/10"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                         onClick={() => {
-                          if (confirm('确定删除此数据源？')) {
+                          if (confirm(t('admin.sources.deleteConfirm'))) {
                             deleteMutation.mutate(source.id)
                           }
                         }}
-                        title="删除"
+                        title={t('common.delete')}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -402,47 +445,37 @@ export function AdminSources() {
           </div>
         </TabsContent>
 
-        {/* API Tab */}
         <TabsContent value="api">
-          <div className="glass-card rounded-xl p-5">
+          <div className="rounded-xl border bg-card text-card-foreground p-5">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs text-white/30">系统内置数据源，不可添加或删除</p>
+              <p className="text-xs text-muted-foreground">{t('admin.sources.systemBuiltIn')}</p>
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
-                className="text-white/50 hover:text-white hover:bg-white/10"
-                onClick={() => {
-                  const ids = apiSources.filter((s) => s.enabled).map((s) => s.id)
-                  ids.forEach((id) => fetchMutation.mutate(id))
-                  toast.success(`正在获取 ${ids.length} 个 API 源...`)
-                }}
+                onClick={handleFetchAll}
+                disabled={fetchingAll}
               >
-                <RefreshCw className="h-4 w-4 mr-1.5" />
-                获取全部
+                <RefreshCw className={`h-4 w-4 mr-1.5 ${fetchingAll ? 'animate-spin' : ''}`} />
+                {t('admin.sources.fetchAll')}
               </Button>
             </div>
             <div className="space-y-1">
               {apiSources.map((source) => (
                 <div
                   key={source.id}
-                  className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-colors group"
+                  className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
                 >
                   <div className="flex items-center space-x-3 min-w-0">
                     {getStatusIcon(source)}
                     <div className="min-w-0 flex items-center space-x-2">
-                      <span className="text-sm text-white/80 truncate">{source.name}</span>
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] px-1.5 py-0 border-white/10 text-white/30"
-                      >
+                      <span className="text-sm text-foreground/80 truncate">{source.name}</span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                         {source.type}
                       </Badge>
                       {!source.enabled && (
-                        <Badge
-                          variant="secondary"
-                          className="text-[10px] px-1.5 py-0 bg-white/10 text-white/30"
-                        >
-                          禁用
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                          {t('admin.sources.disabled')}
                         </Badge>
                       )}
                     </div>
@@ -450,32 +483,37 @@ export function AdminSources() {
 
                   <div className="flex items-center space-x-2">
                     {source.lastError ? (
-                      <span className="text-xs text-red-400/60 truncate max-w-[200px]">
+                      <span className="text-xs text-destructive/60 truncate max-w-[200px]">
                         {source.lastError}
                       </span>
                     ) : (
-                      <span className="text-xs text-white/20">
+                      <span className="text-xs text-muted-foreground">
                         {getTimeAgo(source.lastFetchAt)}
                       </span>
                     )}
-                    <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center space-x-0.5">
                       <Button
+                        type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 w-6 p-0 text-white/30 hover:text-white hover:bg-white/10"
-                        onClick={() => testMutation.mutate(source.id)}
-                        title="测试连通性"
+                        className="h-6 w-6 p-0"
+                        onClick={(e) => handleTest(e, source.id)}
+                        title={t('admin.sources.testConnectivity')}
                       >
                         <Wifi className="h-3 w-3" />
                       </Button>
                       <Button
+                        type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 w-6 p-0 text-white/30 hover:text-white hover:bg-white/10"
-                        onClick={() => fetchMutation.mutate(source.id)}
-                        title="手动抓取"
+                        className="h-6 w-6 p-0"
+                        onClick={(e) => handleFetch(e, source.id)}
+                        disabled={fetchingId === source.id}
+                        title={t('admin.sources.manualFetch')}
                       >
-                        <RefreshCw className="h-3 w-3" />
+                        <RefreshCw
+                          className={`h-3 w-3 ${fetchingId === source.id ? 'animate-spin' : ''}`}
+                        />
                       </Button>
                     </div>
                   </div>

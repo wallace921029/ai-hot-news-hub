@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3000/api'
+const API_BASE = 'http://localhost:8762/api'
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
@@ -17,8 +17,11 @@ class ApiService {
     const { method = 'GET', body, headers = {} } = options
 
     const requestHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...headers,
+    }
+
+    if (body) {
+      requestHeaders['Content-Type'] = 'application/json'
     }
 
     if (this.token) {
@@ -125,11 +128,11 @@ class ApiService {
   }
 
   async fetchSource(id: number) {
-    return this.request<any>(`/admin/sources/${id}/fetch`, { method: 'POST', body: {} })
+    return this.request<any>(`/admin/sources/${id}/fetch`, { method: 'POST' })
   }
 
   async testSource(id: number) {
-    return this.request<any>(`/admin/sources/${id}/test`, { method: 'POST', body: {} })
+    return this.request<any>(`/admin/sources/${id}/test`, { method: 'POST' })
   }
 
   // 管理员 - 用户
@@ -189,7 +192,7 @@ class ApiService {
   }
 
   async fetchAllContent() {
-    return this.request<any>('/admin/content/fetch', { method: 'POST', body: {} })
+    return this.request<any>('/admin/content/fetch', { method: 'POST' })
   }
 
   // 管理员 - 配置

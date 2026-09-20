@@ -82,7 +82,7 @@ npm run dev
 npm run dev
 ```
 
-The frontend runs at `http://localhost:5173` and the backend at `http://localhost:3000`.
+The frontend runs at `http://localhost:8763` and the backend at `http://localhost:8762`.
 
 ### Production Build
 
