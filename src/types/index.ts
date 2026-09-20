@@ -13,11 +13,11 @@ export interface NewsItem {
   url: string
   description: string | null
   platform: string
-  publishedAt: string | null
-  aiScore: number | null
-  aiSummary: string | null
-  categories: string[]
+  sourceType: 'rss' | 'api' | 'topic'
   sourceId: number | null
+  sourceName?: string
+  publishedAt: string | null
+  fetchedAt: string
 }
 
 export interface NewsListResponse {
@@ -34,6 +34,7 @@ export interface DataSource {
   id: number
   name: string
   type: 'rest' | 'rss' | 'html'
+  sourceType: 'rss' | 'api' | 'topic'
   url: string
   method: 'GET' | 'POST'
   headers: Record<string, string> | null
@@ -48,10 +49,11 @@ export interface DataSource {
   updatedAt: string
 }
 
-export interface Category {
+export interface DataSourceOption {
   id: number
   name: string
-  count: number
+  sourceType: 'rss' | 'api' | 'topic'
+  description: string | null
 }
 
 export interface Favorite {
@@ -72,9 +74,7 @@ export interface Stats {
     fetchSuccessRate: number
   }
   platformDistribution: Array<{ platform: string; count: number }>
-  categoryDistribution: Array<{ name: string; count: number }>
   dailyTrend: Array<{ date: string; count: number }>
-  scoreDistribution: Array<{ range: string; count: number }>
 }
 
 export interface LogItem {
@@ -88,9 +88,4 @@ export interface LogItem {
 
 export interface FetchLog extends LogItem {
   sourceId: number
-}
-
-export interface AILog extends LogItem {
-  newsItemId: number
-  tokensUsed?: number | null
 }

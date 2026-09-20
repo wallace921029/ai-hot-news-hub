@@ -1,11 +1,13 @@
 import cron from 'node-cron'
 import { db } from '../db/index.js'
-import { dataSources, newsItems, fetchLogs, categories } from '../db/schema.js'
-import { eq, and, sql } from 'drizzle-orm'
+import { dataSources, newsItems, fetchLogs, systemConfig } from '../db/schema.js'
+import { eq } from 'drizzle-orm'
 import { RestFetcher } from '../fetchers/rest.js'
 import { RssFetcher } from '../fetchers/rss.js'
 import { HtmlFetcher } from '../fetchers/html.js'
 import type { Fetcher, RawNewsItem } from '../fetchers/types.js'
+
+let autoFetchEnabled = false
 
 const restFetcher = new RestFetcher()
 const rssFetcher = new RssFetcher()
@@ -162,43 +164,62 @@ export async function fetchAllSources() {
   console.log('✅ 所有数据源抓取完成')
 }
 
-// 更新分类统计
-export async function updateCategoryCounts() {
-  const allNews = await db.select({ categories: newsItems.categories }).from(newsItems)
+// 获取自动抓取状态
+export function getAutoFetchEnabled() {
+  return autoFetchEnabled
+}
 
-  const categoryMap = new Map<string, number>()
+// 设置自动抓取状态
+export async function setAutoFetchEnabled(enabled: boolean) {
+  autoFetchEnabled = enabled
 
-  for (const news of allNews) {
-    if (news.categories) {
-      const cats = JSON.parse(news.categories) as string[]
-      for (const cat of cats) {
-        categoryMap.set(cat, (categoryMap.get(cat) || 0) + 1)
-      }
-    }
+  // 保存到数据库
+  const existing = await db
+    .select()
+    .from(systemConfig)
+    .where(eq(systemConfig.key, 'auto_fetch_enabled'))
+    .limit(1)
+
+  if (existing.length > 0) {
+    await db
+      .update(systemConfig)
+      .set({ value: JSON.stringify(enabled), updatedAt: new Date() })
+      .where(eq(systemConfig.key, 'auto_fetch_enabled'))
+  } else {
+    await db.insert(systemConfig).values({
+      key: 'auto_fetch_enabled',
+      value: JSON.stringify(enabled),
+    })
   }
 
-  // 更新或插入分类
-  for (const [name, count] of categoryMap) {
-    const existing = await db.select().from(categories).where(eq(categories.name, name)).limit(1)
+  console.log(`⏰ 自动抓取已${enabled ? '开启' : '关闭'}`)
+}
 
-    if (existing.length > 0) {
-      await db
-        .update(categories)
-        .set({ count, updatedAt: new Date() })
-        .where(eq(categories.name, name))
-    } else {
-      await db.insert(categories).values({ name, count })
-    }
+// 初始化自动抓取配置
+async function initAutoFetchConfig() {
+  const existing = await db
+    .select()
+    .from(systemConfig)
+    .where(eq(systemConfig.key, 'auto_fetch_enabled'))
+    .limit(1)
+
+  if (existing.length > 0) {
+    autoFetchEnabled = JSON.parse(existing[0].value) === true
   }
 }
 
 // 启动定时任务
-export function startScheduler() {
-  // 每 30 分钟抓取一次（可配置）
+export async function startScheduler() {
+  // 初始化配置
+  await initAutoFetchConfig()
+
+  // 每 30 分钟检查一次
   cron.schedule('*/30 * * * *', async () => {
+    if (!autoFetchEnabled) {
+      return
+    }
     await fetchAllSources()
-    await updateCategoryCounts()
   })
 
-  console.log('⏰ 定时任务已启动')
+  console.log(`⏰ 定时任务已启动（自动抓取: ${autoFetchEnabled ? '开启' : '关闭'}）`)
 }

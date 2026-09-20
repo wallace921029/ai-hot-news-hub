@@ -1,15 +1,15 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { db } from '../db/index.js'
-import { newsItems, categories } from '../db/schema.js'
-import { eq, desc, asc, like, and, sql, inArray } from 'drizzle-orm'
+import { newsItems, dataSources } from '../db/schema.js'
+import { eq, desc, and, sql } from 'drizzle-orm'
 
 const listSchema = z.object({
   page: z.coerce.number().min(1).default(1),
-  pageSize: z.coerce.number().min(1).max(100).default(15),
-  category: z.string().optional(),
+  pageSize: z.coerce.number().min(1).max(100).default(20),
+  sourceType: z.enum(['rss', 'api', 'topic']).optional(),
+  sourceId: z.coerce.number().optional(),
   platform: z.string().optional(),
-  sort: z.enum(['score', 'time']).default('score'),
   search: z.string().optional(),
 })
 
@@ -21,14 +21,18 @@ export async function newsRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: '参数错误', details: parsed.error.flatten() })
     }
 
-    const { page, pageSize, category, platform, sort, search } = parsed.data
+    const { page, pageSize, sourceType, sourceId, platform, search } = parsed.data
     const offset = (page - 1) * pageSize
 
     // 构建查询条件
     const conditions = [eq(newsItems.status, 'processed')]
 
-    if (category) {
-      conditions.push(sql`json_each.value = ${category}`)
+    if (sourceType) {
+      conditions.push(eq(newsItems.sourceType, sourceType))
+    }
+
+    if (sourceId) {
+      conditions.push(eq(newsItems.sourceId, sourceId))
     }
 
     if (platform) {
@@ -50,33 +54,34 @@ export async function newsRoutes(app: FastifyInstance) {
       .where(where)
 
     // 查询数据
-    const orderBy = sort === 'score' ? desc(newsItems.aiScore) : desc(newsItems.publishedAt)
-
-    let query = db
+    const items = await db
       .select({
         id: newsItems.id,
         title: newsItems.title,
         url: newsItems.url,
         description: newsItems.description,
         platform: newsItems.platform,
-        publishedAt: newsItems.publishedAt,
-        aiScore: newsItems.aiScore,
-        aiSummary: newsItems.aiSummary,
-        categories: newsItems.categories,
+        sourceType: newsItems.sourceType,
         sourceId: newsItems.sourceId,
+        publishedAt: newsItems.publishedAt,
+        fetchedAt: newsItems.fetchedAt,
       })
       .from(newsItems)
       .where(where)
-      .orderBy(orderBy)
+      .orderBy(desc(newsItems.fetchedAt))
       .limit(pageSize)
       .offset(offset)
 
-    const items = await query
+    // 获取数据源名称映射
+    const allSources = await db
+      .select({ id: dataSources.id, name: dataSources.name })
+      .from(dataSources)
+    const sourceMap = new Map(allSources.map((s) => [s.id, s.name]))
 
-    // 解析分类 JSON
+    // 格式化返回数据
     const formattedItems = items.map((item) => ({
       ...item,
-      categories: item.categories ? JSON.parse(item.categories) : [],
+      sourceName: item.sourceId ? sourceMap.get(item.sourceId) || '未知' : '未知',
     }))
 
     return {
@@ -106,21 +111,48 @@ export async function newsRoutes(app: FastifyInstance) {
 
     return {
       ...item,
-      categories: item.categories ? JSON.parse(item.categories) : [],
       metadata: item.metadata ? JSON.parse(item.metadata) : null,
     }
   })
 
-  // 获取所有分类
-  app.get('/categories', async () => {
-    const allCategories = await db.select().from(categories).orderBy(desc(categories.count))
+  // 获取所有数据源（按 sourceType 分组）
+  app.get('/sources', async (request) => {
+    const query = request.query as Record<string, string>
+    const sourceType = query.sourceType
 
-    return allCategories
+    const conditions = [eq(dataSources.enabled, true)]
+    if (sourceType) {
+      conditions.push(eq(dataSources.sourceType, sourceType as 'rss' | 'api' | 'topic'))
+    }
+
+    const sources = await db
+      .select({
+        id: dataSources.id,
+        name: dataSources.name,
+        sourceType: dataSources.sourceType,
+        description: dataSources.description,
+      })
+      .from(dataSources)
+      .where(and(...conditions))
+      .orderBy(dataSources.name)
+
+    return sources
   })
 
   // 获取所有平台
-  app.get('/platforms', async () => {
-    const platforms = await db.selectDistinct({ platform: newsItems.platform }).from(newsItems)
+  app.get('/platforms', async (request) => {
+    const query = request.query as Record<string, string>
+    const sourceType = query.sourceType
+
+    const conditions = [eq(newsItems.status, 'processed')]
+    if (sourceType) {
+      conditions.push(eq(newsItems.sourceType, sourceType as 'rss' | 'api' | 'topic'))
+    }
+
+    const platforms = await db
+      .selectDistinct({ platform: newsItems.platform })
+      .from(newsItems)
+      .where(and(...conditions))
 
     return platforms.map((p) => p.platform)
   })

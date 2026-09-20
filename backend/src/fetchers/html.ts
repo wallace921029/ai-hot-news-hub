@@ -13,9 +13,9 @@ const baiduParser: HtmlParser = {
 
     $('.category-wrap_iQLoo').each((_, el) => {
       const $el = $(el)
-      const title = $el('.c-single-text-ellipsis').text().trim()
-      const url = $el('a').attr('href') || ''
-      const hotScore = parseInt($el('.hot-index_1Bl1a').text().trim()) || 0
+      const title = $el.find('.c-single-text-ellipsis').text().trim()
+      const url = $el.find('a').attr('href') || ''
+      const hotScore = parseInt($el.find('.hot-index_1Bl1a').text().trim()) || 0
 
       if (title) {
         items.push({
@@ -96,18 +96,6 @@ const thepaperParser: HtmlParser = {
   parse(html, source) {
     const $ = cheerio.load(html)
     const items: RawNewsItem[] = []
-
-    // 尝试解析 JSON 数据
-    try {
-      const jsonData = $('script[type="application/json"]').html()
-      if (jsonData) {
-        const data = JSON.parse(jsonData)
-        // 根据实际 API 响应结构解析
-        return items
-      }
-    } catch {
-      // 继续尝试 HTML 解析
-    }
 
     $('a').each((_, el) => {
       const $el = $(el)

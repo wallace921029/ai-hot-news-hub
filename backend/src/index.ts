@@ -10,7 +10,6 @@ import { newsRoutes } from './routes/news.js'
 import { favoriteRoutes } from './routes/favorites.js'
 import { adminRoutes } from './routes/admin/index.js'
 import { startScheduler, fetchAllSources } from './scheduler/index.js'
-import { processAllPending } from './ai/index.js'
 
 const app = Fastify({
   logger: true,
@@ -40,7 +39,6 @@ app.post(
   '/api/admin/fetch',
   {
     preHandler: async (request, reply) => {
-      // 简单的权限检查
       const authHeader = request.headers.authorization
       if (!authHeader) {
         return reply.status(401).send({ error: '未授权' })
@@ -48,8 +46,7 @@ app.post(
     },
   },
   async () => {
-    // 异步执行，不等待完成
-    fetchAllSources().then(() => processAllPending())
+    fetchAllSources().catch(console.error)
     return { success: true, message: '抓取任务已触发' }
   }
 )
@@ -76,9 +73,6 @@ async function initializeDefaults() {
   const defaultConfigs = [
     { key: 'invite_code', value: JSON.stringify(env.INVITE_CODE) },
     { key: 'registration_enabled', value: JSON.stringify(true) },
-    { key: 'ai_api_key', value: JSON.stringify(env.AI_API_KEY || '') },
-    { key: 'ai_base_url', value: JSON.stringify(env.AI_BASE_URL) },
-    { key: 'ai_model', value: JSON.stringify(env.AI_MODEL) },
     { key: 'fetch_interval', value: JSON.stringify(30) },
   ]
 
@@ -102,7 +96,7 @@ async function start() {
     await initializeDefaults()
 
     // 启动定时任务
-    startScheduler()
+    await startScheduler()
 
     await app.listen({ port: env.PORT, host: env.HOST })
     app.log.info(`🚀 服务器已启动: http://${env.HOST}:${env.PORT}`)

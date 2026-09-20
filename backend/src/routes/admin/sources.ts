@@ -27,6 +27,7 @@ function getFetcher(type: string) {
 const sourceSchema = z.object({
   name: z.string().min(1).max(100),
   type: z.enum(['rest', 'rss', 'html']),
+  sourceType: z.enum(['rss', 'api', 'topic']).default('api'),
   url: z.string().url(),
   method: z.enum(['GET', 'POST']).default('GET'),
   headers: z.record(z.string()).optional(),
@@ -143,6 +144,7 @@ export async function sourceRoutes(app: FastifyInstance) {
           try {
             await db.insert(newsItems).values({
               sourceId: item.sourceId,
+              sourceType: source.sourceType || 'api',
               platform: item.platform,
               title: item.title,
               url: item.url,
@@ -152,7 +154,7 @@ export async function sourceRoutes(app: FastifyInstance) {
               fetchedAt: item.fetchedAt,
               hotScore: item.hotScore,
               metadata: item.metadata ? JSON.stringify(item.metadata) : null,
-              status: 'pending',
+              status: 'processed',
             })
             savedCount++
           } catch {

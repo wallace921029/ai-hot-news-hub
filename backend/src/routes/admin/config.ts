@@ -3,14 +3,15 @@ import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { systemConfig } from '../../db/schema.js'
 import { eq } from 'drizzle-orm'
+import { getAutoFetchEnabled, setAutoFetchEnabled } from '../../scheduler/index.js'
 
 const configSchema = z.object({
   inviteCode: z.string().optional(),
   registrationEnabled: z.boolean().optional(),
+  fetchInterval: z.number().min(5).max(1440).optional(),
   aiApiKey: z.string().optional(),
   aiBaseUrl: z.string().optional(),
   aiModel: z.string().optional(),
-  fetchInterval: z.number().min(5).max(1440).optional(),
 })
 
 export async function configRoutes(app: FastifyInstance) {
@@ -26,10 +27,11 @@ export async function configRoutes(app: FastifyInstance) {
     return {
       inviteCode: configMap.invite_code || '',
       registrationEnabled: configMap.registration_enabled ?? true,
-      aiApiKey: configMap.ai_api_key ? '***' : '', // 不返回真实 key
-      aiBaseUrl: configMap.ai_base_url || 'https://api.openai.com/v1',
-      aiModel: configMap.ai_model || 'gpt-4o-mini',
       fetchInterval: configMap.fetch_interval || 30,
+      autoFetchEnabled: getAutoFetchEnabled(),
+      aiApiKey: configMap.ai_api_key || '',
+      aiBaseUrl: configMap.ai_base_url || '',
+      aiModel: configMap.ai_model || '',
     }
   })
 
@@ -49,15 +51,19 @@ export async function configRoutes(app: FastifyInstance) {
         key: 'registration_enabled',
         value: JSON.stringify(data.registrationEnabled),
       },
-      data.aiApiKey !== undefined &&
-        data.aiApiKey !== '' && { key: 'ai_api_key', value: JSON.stringify(data.aiApiKey) },
-      data.aiBaseUrl !== undefined &&
-        data.aiBaseUrl !== '' && { key: 'ai_base_url', value: JSON.stringify(data.aiBaseUrl) },
-      data.aiModel !== undefined &&
-        data.aiModel !== '' && { key: 'ai_model', value: JSON.stringify(data.aiModel) },
       data.fetchInterval !== undefined && {
         key: 'fetch_interval',
         value: JSON.stringify(data.fetchInterval),
+      },
+      data.aiApiKey !== undefined &&
+        data.aiApiKey !== '' && { key: 'ai_api_key', value: JSON.stringify(data.aiApiKey) },
+      data.aiBaseUrl !== undefined && {
+        key: 'ai_base_url',
+        value: JSON.stringify(data.aiBaseUrl),
+      },
+      data.aiModel !== undefined && {
+        key: 'ai_model',
+        value: JSON.stringify(data.aiModel),
       },
     ].filter(Boolean)
 
@@ -81,5 +87,51 @@ export async function configRoutes(app: FastifyInstance) {
     }
 
     return { success: true }
+  })
+
+  // 获取自动抓取状态
+  app.get('/auto-fetch', async () => {
+    return { enabled: getAutoFetchEnabled() }
+  })
+
+  // 切换自动抓取
+  app.put('/auto-fetch', async (request) => {
+    const { enabled } = request.body as { enabled: boolean }
+    await setAutoFetchEnabled(enabled)
+    return { enabled: getAutoFetchEnabled() }
+  })
+
+  // 获取 AI 可用模型列表
+  app.post('/ai/models', async (request, reply) => {
+    const { baseUrl, apiKey } = request.body as { baseUrl: string; apiKey: string }
+
+    if (!baseUrl || !apiKey) {
+      return reply.status(400).send({ error: '请提供 Base URL 和 API Key' })
+    }
+
+    try {
+      const response = await fetch(`${baseUrl}/models`, {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        return reply.status(response.status).send({ error: '获取模型列表失败' })
+      }
+
+      const data = (await response.json()) as {
+        data: Array<{ id: string; object: string }>
+      }
+
+      const models = (data.data || []).map((m) => m.id).sort()
+
+      return { models }
+    } catch (error) {
+      return reply.status(500).send({
+        error: error instanceof Error ? error.message : '获取模型列表失败',
+      })
+    }
   })
 }

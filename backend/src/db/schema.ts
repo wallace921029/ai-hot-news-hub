@@ -26,6 +26,9 @@ export const dataSources = sqliteTable('data_sources', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
   type: text('type', { enum: ['rest', 'rss', 'html'] }).notNull(),
+  sourceType: text('source_type', { enum: ['rss', 'api', 'topic'] })
+    .notNull()
+    .default('api'),
   url: text('url').notNull(),
   method: text('method', { enum: ['GET', 'POST'] }).default('GET'),
   headers: text('headers'), // JSON string
@@ -48,6 +51,9 @@ export const dataSources = sqliteTable('data_sources', {
 export const newsItems = sqliteTable('news_items', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   sourceId: integer('source_id').references(() => dataSources.id),
+  sourceType: text('source_type', { enum: ['rss', 'api', 'topic'] })
+    .notNull()
+    .default('api'),
   platform: text('platform').notNull(),
   title: text('title').notNull(),
   url: text('url').notNull().unique(),
@@ -57,13 +63,10 @@ export const newsItems = sqliteTable('news_items', {
   fetchedAt: integer('fetched_at', { mode: 'timestamp' }).notNull(),
   hotScore: real('hot_score'),
   metadata: text('metadata'), // JSON string
-  categories: text('categories'), // JSON array string
-  aiScore: real('ai_score'),
-  aiSummary: text('ai_summary'),
-  processedAt: integer('processed_at', { mode: 'timestamp' }),
-  status: text('status', { enum: ['pending', 'processing', 'processed', 'failed'] })
+  topicId: integer('topic_id'), // 预留：关联话题表
+  status: text('status', { enum: ['pending', 'processed', 'failed'] })
     .notNull()
-    .default('pending'),
+    .default('processed'),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),
@@ -83,7 +86,39 @@ export const favorites = sqliteTable('favorites', {
     .default(sql`(unixepoch())`),
 })
 
-// 分类表
+// 话题表（预留，暂不实现）
+export const topics = sqliteTable('topics', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  description: text('description'),
+  searchQueries: text('search_queries'), // JSON array of search queries
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  lastFetchAt: integer('last_fetch_at', { mode: 'timestamp' }),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})
+
+// 咨询类别表（管理员可编辑）
+export const newsCategories = sqliteTable('news_categories', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  description: text('description'),
+  icon: text('icon'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})
+
+// 分类统计表（保留用于统计展示）
 export const categories = sqliteTable('categories', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull().unique(),

@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify'
 import { db } from '../../db/index.js'
-import { newsItems, dataSources, fetchLogs, users, categories } from '../../db/schema.js'
+import { newsItems, dataSources, fetchLogs, users, newsCategories } from '../../db/schema.js'
 import { sql, desc } from 'drizzle-orm'
 
 export async function statsRoutes(app: FastifyInstance) {
@@ -39,12 +39,11 @@ export async function statsRoutes(app: FastifyInstance) {
       .groupBy(newsItems.platform)
       .orderBy(desc(sql`count(*)`))
 
-    // 分类分布（Top 10）
+    // 分类分布（按类别统计）
     const categoryDistribution = await db
       .select()
-      .from(categories)
-      .orderBy(desc(categories.count))
-      .limit(10)
+      .from(newsCategories)
+      .orderBy(desc(newsCategories.sortOrder))
 
     // 每日趋势（最近 7 天）
     const dailyTrend = await db
@@ -56,29 +55,6 @@ export async function statsRoutes(app: FastifyInstance) {
       .where(sql`${newsItems.createdAt} >= unixepoch('now', '-7 days')`)
       .groupBy(sql`date(${newsItems.createdAt}, 'unixepoch')`)
       .orderBy(sql`date(${newsItems.createdAt}, 'unixepoch')`)
-
-    // 评分分布
-    const scoreDistribution = await db
-      .select({
-        range: sql<string>`
-          CASE
-            WHEN ${newsItems.aiScore} >= 90 THEN '90-100'
-            WHEN ${newsItems.aiScore} >= 70 THEN '70-89'
-            WHEN ${newsItems.aiScore} >= 50 THEN '50-69'
-            ELSE '0-49'
-          END
-        `,
-        count: sql<number>`count(*)`,
-      })
-      .from(newsItems)
-      .where(sql`${newsItems.aiScore} IS NOT NULL`).groupBy(sql`
-        CASE
-          WHEN ${newsItems.aiScore} >= 90 THEN '90-100'
-          WHEN ${newsItems.aiScore} >= 70 THEN '70-89'
-          WHEN ${newsItems.aiScore} >= 50 THEN '50-69'
-          ELSE '0-49'
-        END
-      `)
 
     // 抓取统计
     const [{ totalFetches }] = await db
@@ -104,10 +80,9 @@ export async function statsRoutes(app: FastifyInstance) {
       platformDistribution,
       categoryDistribution: categoryDistribution.map((c) => ({
         name: c.name,
-        count: c.count,
+        count: 0, // 实际统计需要查询 news_items 中的 category_ids
       })),
       dailyTrend,
-      scoreDistribution,
     }
   })
 }

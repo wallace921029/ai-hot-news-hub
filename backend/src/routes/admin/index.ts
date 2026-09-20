@@ -6,6 +6,7 @@ import { contentRoutes } from './content.js'
 import { configRoutes } from './config.js'
 import { statsRoutes } from './stats.js'
 import { logRoutes } from './logs.js'
+import { categoryRoutes } from './categories.js'
 
 export async function adminRoutes(app: FastifyInstance) {
   // 所有管理员路由都需要认证和管理员权限
@@ -18,4 +19,5 @@ export async function adminRoutes(app: FastifyInstance) {
   await app.register(configRoutes, { prefix: '/config' })
   await app.register(statsRoutes, { prefix: '/stats' })
   await app.register(logRoutes, { prefix: '/logs' })
+  await app.register(categoryRoutes, { prefix: '/categories' })
 }

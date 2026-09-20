@@ -1,25 +1,17 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/services/api'
-import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { AlertCircle } from 'lucide-react'
-import type { FetchLog, AILog } from '@/types'
+import { ChevronLeft, ChevronRight, FileText } from 'lucide-react'
+import type { FetchLog } from '@/types'
 
 export function AdminLogs() {
   const [fetchPage, setFetchPage] = useState(1)
-  const [aiPage, setAiPage] = useState(1)
 
   const { data: fetchLogs } = useQuery({
     queryKey: ['fetch-logs', fetchPage],
     queryFn: () => api.getFetchLogs({ page: fetchPage, pageSize: 20 }),
-  })
-
-  const { data: aiLogs } = useQuery({
-    queryKey: ['ai-logs', aiPage],
-    queryFn: () => api.getAILogs({ page: aiPage, pageSize: 20 }),
   })
 
   const { data: errorLogs } = useQuery({
@@ -27,154 +19,133 @@ export function AdminLogs() {
     queryFn: () => api.getErrorLogs({ page: 1, pageSize: 50 }),
   })
 
+  const renderPagination = (page: number, totalPages: number, setPage: (p: number) => void) => {
+    if (totalPages <= 1) return null
+    return (
+      <div className="flex items-center justify-center space-x-2 pt-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setPage(page - 1)}
+          disabled={page <= 1}
+          className="text-white/50 hover:text-white hover:bg-white/10"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-white/5">
+          <span className="text-sm text-white/70">{page}</span>
+          <span className="text-sm text-white/30">/</span>
+          <span className="text-sm text-white/50">{totalPages}</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setPage(page + 1)}
+          disabled={page >= totalPages}
+          className="text-white/50 hover:text-white hover:bg-white/10"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">日志查看</h1>
+      <div>
+        <h1 className="text-2xl font-bold text-white">日志查看</h1>
+        <p className="text-sm text-white/40 mt-1">查看系统运行日志</p>
+      </div>
 
-      <Tabs defaultValue="fetch">
-        <TabsList>
-          <TabsTrigger value="fetch">抓取日志</TabsTrigger>
-          <TabsTrigger value="ai">AI 处理日志</TabsTrigger>
-          <TabsTrigger value="errors">错误日志</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="fetch" className="space-y-4">
-          {fetchLogs?.items.map((log: FetchLog) => (
-            <Card key={log.id}>
-              <CardContent className="py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant={log.status === 'success' ? 'default' : 'destructive'}>
-                      {log.status === 'success' ? '成功' : '失败'}
-                    </Badge>
-                    <span className="text-sm">数据源 #{log.sourceId}</span>
-                    {log.count !== undefined && (
-                      <span className="text-sm text-muted-foreground">{log.count} 条</span>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                    <span>{log.duration}ms</span>
-                    <span>{new Date(log.createdAt).toLocaleString()}</span>
-                  </div>
+      {/* 抓取日志 */}
+      <div className="glass-card rounded-xl p-5">
+        <h2 className="text-base font-semibold text-white mb-4">抓取日志</h2>
+        {!fetchLogs?.items.length ? (
+          <div className="text-center py-12">
+            <FileText className="w-12 h-12 text-white/10 mx-auto mb-3" />
+            <p className="text-white/30">暂无抓取日志</p>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {fetchLogs.items.map((log: FetchLog) => (
+              <div
+                key={log.id}
+                className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-white/[0.03]"
+              >
+                <div className="flex items-center space-x-3">
+                  <Badge
+                    className={
+                      log.status === 'success'
+                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                        : 'bg-red-500/20 text-red-400 border-red-500/30'
+                    }
+                  >
+                    {log.status === 'success' ? '成功' : '失败'}
+                  </Badge>
+                  <span className="text-sm text-white/70">数据源 #{log.sourceId}</span>
+                  {log.count !== undefined && (
+                    <span className="text-xs text-white/30">{log.count} 条</span>
+                  )}
                 </div>
-                {log.error && <p className="text-sm text-red-500 mt-2">{log.error}</p>}
-              </CardContent>
-            </Card>
-          ))}
-          {fetchLogs && fetchLogs.pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setFetchPage(fetchPage - 1)}
-                disabled={fetchPage <= 1}
-              >
-                上一页
-              </Button>
-              <span className="text-sm">
-                {fetchPage} / {fetchLogs.pagination.totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setFetchPage(fetchPage + 1)}
-                disabled={fetchPage >= fetchLogs.pagination.totalPages}
-              >
-                下一页
-              </Button>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="ai" className="space-y-4">
-          {aiLogs?.items.map((log: AILog) => (
-            <Card key={log.id}>
-              <CardContent className="py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant={log.status === 'success' ? 'default' : 'destructive'}>
-                      {log.status === 'success' ? '成功' : '失败'}
-                    </Badge>
-                    <span className="text-sm">新闻 #{log.newsItemId}</span>
-                    {log.tokensUsed && (
-                      <span className="text-sm text-muted-foreground">{log.tokensUsed} tokens</span>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                    <span>{log.duration}ms</span>
-                    <span>{new Date(log.createdAt).toLocaleString()}</span>
-                  </div>
+                <div className="flex items-center space-x-3">
+                  {log.error && (
+                    <span className="text-xs text-red-400/60 truncate max-w-[200px]">
+                      {log.error}
+                    </span>
+                  )}
+                  <span className="text-xs text-white/20">{log.duration}ms</span>
+                  <span className="text-xs text-white/20">
+                    {new Date(log.createdAt).toLocaleString()}
+                  </span>
                 </div>
-                {log.error && <p className="text-sm text-red-500 mt-2">{log.error}</p>}
-              </CardContent>
-            </Card>
-          ))}
-          {aiLogs && aiLogs.pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setAiPage(aiPage - 1)}
-                disabled={aiPage <= 1}
-              >
-                上一页
-              </Button>
-              <span className="text-sm">
-                {aiPage} / {aiLogs.pagination.totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setAiPage(aiPage + 1)}
-                disabled={aiPage >= aiLogs.pagination.totalPages}
-              >
-                下一页
-              </Button>
-            </div>
-          )}
-        </TabsContent>
+              </div>
+            ))}
+          </div>
+        )}
+        {renderPagination(fetchPage, fetchLogs?.pagination.totalPages || 1, setFetchPage)}
+      </div>
 
-        <TabsContent value="errors" className="space-y-4">
-          {errorLogs?.items.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>暂无错误日志</p>
-            </div>
-          ) : (
-            errorLogs?.items.map(
+      {/* 错误日志 */}
+      <div className="glass-card rounded-xl p-5">
+        <h2 className="text-base font-semibold text-white mb-4">错误日志</h2>
+        {!errorLogs?.items.length ? (
+          <div className="text-center py-12">
+            <FileText className="w-12 h-12 text-emerald-400/20 mx-auto mb-3" />
+            <p className="text-white/30">暂无错误日志</p>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {errorLogs.items.map(
               (
-                log: {
-                  type: string
-                  sourceId?: number
-                  newsItemId?: number
-                  error?: string
-                  createdAt: string
-                },
+                log: { type: string; sourceId?: number; error?: string; createdAt: string },
                 index: number
               ) => (
-                <Card key={index}>
-                  <CardContent className="py-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="destructive">{log.type === 'fetch' ? '抓取' : 'AI'}</Badge>
-                        <span className="text-sm">
-                          {log.type === 'fetch'
-                            ? `数据源 #${log.sourceId}`
-                            : `新闻 #${log.newsItemId}`}
-                        </span>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        {new Date(log.createdAt).toLocaleString()}
+                <div
+                  key={index}
+                  className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-white/[0.03]"
+                >
+                  <div className="flex items-center space-x-3">
+                    <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
+                      {log.type === 'fetch' ? '抓取' : '系统'}
+                    </Badge>
+                    <span className="text-sm text-white/70">数据源 #{log.sourceId}</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    {log.error && (
+                      <span className="text-xs text-red-400/60 truncate max-w-[300px]">
+                        {log.error}
                       </span>
-                    </div>
-                    {log.error && <p className="text-sm text-red-500 mt-2">{log.error}</p>}
-                  </CardContent>
-                </Card>
+                    )}
+                    <span className="text-xs text-white/20">
+                      {new Date(log.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
               )
-            )
-          )}
-        </TabsContent>
-      </Tabs>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

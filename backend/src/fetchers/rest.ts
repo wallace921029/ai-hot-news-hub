@@ -7,17 +7,35 @@ interface PlatformParser {
 // 知乎热榜
 const zhihuParser: PlatformParser = {
   parse(data, source) {
-    const items = (
-      data as { data: Array<{ target: { title: string; url: string; excerpt?: string } }> }
-    ).data
-    return items.map((item) => ({
-      sourceId: source.id,
-      platform: 'zhihu',
-      title: item.target.title,
-      url: item.target.url,
-      description: item.target.excerpt,
-      fetchedAt: new Date(),
-    }))
+    // 知乎热榜格式
+    const hotListData = data as {
+      data: Array<{ target: { title: string; url: string; excerpt?: string } }>
+    }
+    if (hotListData.data && Array.isArray(hotListData.data)) {
+      return hotListData.data.map((item) => ({
+        sourceId: source.id,
+        platform: 'zhihu',
+        title: item.target.title,
+        url: item.target.url,
+        description: item.target.excerpt,
+        fetchedAt: new Date(),
+      }))
+    }
+    // 知乎日报格式
+    const dailyData = data as {
+      stories: Array<{ title: string; url: string; hint?: string; images?: string[] }>
+    }
+    if (dailyData.stories && Array.isArray(dailyData.stories)) {
+      return dailyData.stories.map((item) => ({
+        sourceId: source.id,
+        platform: 'zhihu',
+        title: item.title,
+        url: item.url,
+        description: item.hint,
+        fetchedAt: new Date(),
+      }))
+    }
+    return []
   },
 }
 
@@ -78,27 +96,33 @@ const toutiaoParser: PlatformParser = {
 // 掘金
 const juejinParser: PlatformParser = {
   parse(data, source) {
-    const items = (
-      data as {
-        data: Array<{
+    const response = data as {
+      data: Array<{
+        item_info: {
           article_info: {
             title: string
             link_url: string
             brief_content: string
             digg_count: number
+            article_id: string
           }
-        }>
-      }
-    ).data
-    return items.map((item) => ({
-      sourceId: source.id,
-      platform: 'juejin',
-      title: item.article_info.title,
-      url: item.article_info.link_url,
-      description: item.article_info.brief_content,
-      hotScore: item.article_info.digg_count,
-      fetchedAt: new Date(),
-    }))
+        }
+      }>
+    }
+    return (response.data || [])
+      .filter((item) => item.item_info?.article_info)
+      .map((item) => {
+        const article = item.item_info.article_info
+        return {
+          sourceId: source.id,
+          platform: 'juejin',
+          title: article.title,
+          url: article.link_url || `https://juejin.cn/post/${article.article_id}`,
+          description: article.brief_content,
+          hotScore: article.digg_count,
+          fetchedAt: new Date(),
+        }
+      })
   },
 }
 
@@ -194,18 +218,23 @@ const jiqizhixinParser: PlatformParser = {
 // 36氪
 const kr36Parser: PlatformParser = {
   parse(data, source) {
-    const items = (
-      data as {
-        data: Array<{
-          templateMaterial: { widgetTitle: string; widgetContent: { itemId: number } }
+    const response = data as {
+      data: {
+        hotRankList: Array<{
+          itemId: number
+          templateMaterial: {
+            widgetTitle: string
+            widgetContent?: { itemId: number }
+          }
         }>
       }
-    ).data
+    }
+    const items = response.data?.hotRankList || []
     return items.map((item) => ({
       sourceId: source.id,
       platform: '36kr',
       title: item.templateMaterial.widgetTitle,
-      url: `https://36kr.com/p/${item.templateMaterial.widgetContent.itemId}`,
+      url: `https://36kr.com/p/${item.itemId}`,
       fetchedAt: new Date(),
     }))
   },
@@ -229,11 +258,43 @@ const doubanParser: PlatformParser = {
   },
 }
 
+// 澎湃新闻
+const thepaperParser: PlatformParser = {
+  parse(data, source) {
+    const response = data as {
+      data: {
+        hotNews: Array<{
+          contId: string
+          name: string
+          pubTime?: string
+          praiseTimes?: string
+        }>
+      }
+    }
+    const items = response.data?.hotNews || []
+    return items.map((item) => ({
+      sourceId: source.id,
+      platform: 'thepaper',
+      title: item.name,
+      url: `https://www.thepaper.cn/newsDetail_forward_${item.contId}`,
+      hotScore: item.praiseTimes ? parseInt(item.praiseTimes) : undefined,
+      fetchedAt: new Date(),
+    }))
+  },
+}
+
 // 少数派
 const sspaiParser: PlatformParser = {
   parse(data, source) {
-    const items = (data as { data: Array<{ title: string; url: string; summary?: string }> }).data
-    return items.map((item) => ({
+    const response = data as {
+      data: Array<{ title: string; url: string; summary?: string }> | null
+      error?: number
+      msg?: string
+    }
+    if (!response.data || response.error) {
+      throw new Error(response.msg || '少数派 API 需要登录或返回错误')
+    }
+    return response.data.map((item) => ({
       sourceId: source.id,
       platform: 'sspai',
       title: item.title,
@@ -277,6 +338,7 @@ const parsers: Record<string, PlatformParser> = {
   jiqizhixin: jiqizhixinParser,
   '36kr': kr36Parser,
   douban: doubanParser,
+  thepaper: thepaperParser,
   sspai: sspaiParser,
   weread: wereadParser,
 }

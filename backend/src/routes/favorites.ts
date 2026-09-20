@@ -12,7 +12,7 @@ export async function favoriteRoutes(app: FastifyInstance) {
   app.get('/', async (request) => {
     const query = request.query as Record<string, string>
     const page = Math.max(1, parseInt(query.page) || 1)
-    const pageSize = Math.min(100, Math.max(1, parseInt(query.pageSize) || 15))
+    const pageSize = Math.min(100, Math.max(1, parseInt(query.pageSize) || 20))
     const offset = (page - 1) * pageSize
 
     const [{ count }] = await db
@@ -30,10 +30,9 @@ export async function favoriteRoutes(app: FastifyInstance) {
           url: newsItems.url,
           description: newsItems.description,
           platform: newsItems.platform,
+          sourceType: newsItems.sourceType,
           publishedAt: newsItems.publishedAt,
-          aiScore: newsItems.aiScore,
-          aiSummary: newsItems.aiSummary,
-          categories: newsItems.categories,
+          fetchedAt: newsItems.fetchedAt,
         },
       })
       .from(favorites)
@@ -46,12 +45,7 @@ export async function favoriteRoutes(app: FastifyInstance) {
     return {
       items: items.map((item) => ({
         ...item,
-        newsItem: item.newsItem
-          ? {
-              ...item.newsItem,
-              categories: item.newsItem.categories ? JSON.parse(item.newsItem.categories) : [],
-            }
-          : null,
+        newsItem: item.newsItem || null,
       })),
       pagination: {
         page,
@@ -93,7 +87,7 @@ export async function favoriteRoutes(app: FastifyInstance) {
   })
 
   // 取消收藏
-  app.delete('/:newsId', async (request, reply) => {
+  app.delete('/:newsId', async (request) => {
     const { newsId } = request.params as { newsId: string }
     const newsIdNum = parseInt(newsId)
 

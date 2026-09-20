@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
@@ -14,58 +14,79 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Plus, RefreshCw, Wifi, Trash2, Edit } from 'lucide-react'
+import {
+  Plus,
+  RefreshCw,
+  Wifi,
+  Trash2,
+  Edit,
+  Rss,
+  Globe,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+} from 'lucide-react'
 import type { DataSource } from '@/types'
 
-type SourceType = 'rest' | 'rss' | 'html'
-type MethodType = 'GET' | 'POST'
-
-const defaultSource: {
+interface RssForm {
   name: string
-  type: SourceType
   url: string
-  method: MethodType
   parser: string
   enabled: boolean
   fetchInterval: number
   description: string
-} = {
+}
+
+const defaultRssForm: RssForm = {
   name: '',
-  type: 'rest',
   url: '',
-  method: 'GET',
   parser: '',
   enabled: true,
   fetchInterval: 30,
   description: '',
 }
 
+function getStatusIcon(source: DataSource) {
+  if (source.lastError) return <AlertCircle className="h-3.5 w-3.5 text-red-400" />
+  if (source.lastFetchAt) return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+  return <Clock className="h-3.5 w-3.5 text-white/30" />
+}
+
+function getTimeAgo(dateStr: string | null) {
+  if (!dateStr) return '未抓取'
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
+  if (diff < 60) return '刚刚'
+  if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`
+  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`
+  return `${Math.floor(diff / 86400)} 天前`
+}
+
 export function AdminSources() {
   const queryClient = useQueryClient()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingSource, setEditingSource] = useState<DataSource | null>(null)
-  const [form, setForm] = useState(defaultSource)
+  const [form, setForm] = useState<RssForm>(defaultRssForm)
 
   const { data: sources, isLoading } = useQuery({
     queryKey: ['admin-sources'],
     queryFn: () => api.getSources(),
   })
 
+  const rssSources = sources?.filter((s) => s.type === 'rss') || []
+  const apiSources = sources?.filter((s) => s.type === 'rest' || s.type === 'html') || []
+  const apiSourcesWithErrors = apiSources.filter((s) => s.lastError)
+
   const createMutation = useMutation({
-    mutationFn: (data: typeof defaultSource) => api.createSource(data),
+    mutationFn: (data: typeof defaultRssForm) =>
+      api.createSource({ ...data, type: 'rss', method: 'GET' }),
     onSuccess: () => {
       toast.success('创建成功')
       queryClient.invalidateQueries({ queryKey: ['admin-sources'] })
       setDialogOpen(false)
-      setForm(defaultSource)
+      setForm(defaultRssForm)
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : '创建失败')
@@ -80,7 +101,7 @@ export function AdminSources() {
       queryClient.invalidateQueries({ queryKey: ['admin-sources'] })
       setDialogOpen(false)
       setEditingSource(null)
-      setForm(defaultSource)
+      setForm(defaultRssForm)
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : '更新失败')
@@ -134,9 +155,7 @@ export function AdminSources() {
     setEditingSource(source)
     setForm({
       name: source.name,
-      type: source.type,
       url: source.url,
-      method: source.method,
       parser: source.parser || '',
       enabled: source.enabled,
       fetchInterval: source.fetchInterval,
@@ -145,113 +164,103 @@ export function AdminSources() {
     setDialogOpen(true)
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-2 border-white/20 border-t-violet-500 rounded-full animate-spin" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
+      {/* 标题 */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">数据源管理</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-white">数据源管理</h1>
+          <p className="text-sm text-white/40 mt-1">共 {sources?.length || 0} 个数据源</p>
+        </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button
               onClick={() => {
                 setEditingSource(null)
-                setForm(defaultSource)
+                setForm(defaultRssForm)
               }}
+              className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
             >
               <Plus className="h-4 w-4 mr-2" />
-              添加数据源
+              添加 RSS 订阅
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="bg-gray-900 border-white/10">
             <DialogHeader>
-              <DialogTitle>{editingSource ? '编辑数据源' : '添加数据源'}</DialogTitle>
+              <DialogTitle className="text-white">
+                {editingSource ? '编辑 RSS 订阅' : '添加 RSS 订阅'}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>名称</Label>
+                <Label className="text-white/70">名称</Label>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="数据源名称"
+                  placeholder="RSS 订阅名称"
+                  className="bg-white/5 border-white/10 text-white"
                 />
               </div>
               <div className="space-y-2">
-                <Label>类型</Label>
-                <Select
-                  value={form.type}
-                  onValueChange={(value: 'rest' | 'rss' | 'html') =>
-                    setForm({ ...form, type: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="rest">REST API</SelectItem>
-                    <SelectItem value="rss">RSS/Atom</SelectItem>
-                    <SelectItem value="html">HTML 解析</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>URL</Label>
+                <Label className="text-white/70">URL</Label>
                 <Input
                   value={form.url}
                   onChange={(e) => setForm({ ...form, url: e.target.value })}
-                  placeholder="https://..."
+                  placeholder="https://example.com/feed"
+                  className="bg-white/5 border-white/10 text-white"
                 />
               </div>
-              {form.type === 'rest' && (
-                <div className="space-y-2">
-                  <Label>请求方法</Label>
-                  <Select
-                    value={form.method}
-                    onValueChange={(value: 'GET' | 'POST') => setForm({ ...form, method: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="GET">GET</SelectItem>
-                      <SelectItem value="POST">POST</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
               <div className="space-y-2">
-                <Label>解析器</Label>
+                <Label className="text-white/70">解析器标识</Label>
                 <Input
                   value={form.parser}
                   onChange={(e) => setForm({ ...form, parser: e.target.value })}
-                  placeholder="解析器标识（可选）"
+                  placeholder="可选，如 qbitai"
+                  className="bg-white/5 border-white/10 text-white"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>抓取间隔（分钟）</Label>
-                <Input
-                  type="number"
-                  value={form.fetchInterval}
-                  onChange={(e) =>
-                    setForm({ ...form, fetchInterval: parseInt(e.target.value) || 30 })
-                  }
-                  min={5}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>描述</Label>
-                <Input
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="数据源描述（可选）"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-white/70">抓取间隔（分钟）</Label>
+                  <Input
+                    type="number"
+                    value={form.fetchInterval}
+                    onChange={(e) =>
+                      setForm({ ...form, fetchInterval: parseInt(e.target.value) || 30 })
+                    }
+                    min={5}
+                    className="bg-white/5 border-white/10 text-white"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white/70">描述</Label>
+                  <Input
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    placeholder="可选"
+                    className="bg-white/5 border-white/10 text-white"
+                  />
+                </div>
               </div>
               <div className="flex items-center space-x-2">
                 <Switch
                   checked={form.enabled}
                   onCheckedChange={(checked) => setForm({ ...form, enabled: checked })}
                 />
-                <Label>启用</Label>
+                <Label className="text-white/70">启用</Label>
               </div>
-              <Button onClick={handleSubmit} className="w-full">
+              <Button
+                onClick={handleSubmit}
+                className="w-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
+              >
                 {editingSource ? '保存' : '创建'}
               </Button>
             </div>
@@ -259,76 +268,223 @@ export function AdminSources() {
         </Dialog>
       </div>
 
-      {isLoading ? (
-        <div className="text-center py-8">加载中...</div>
-      ) : sources?.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">暂无数据源</div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {sources?.map((source) => (
-            <Card key={source.id}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{source.name}</CardTitle>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Badge variant="outline">{source.type}</Badge>
-                      <Badge variant={source.enabled ? 'default' : 'secondary'}>
-                        {source.enabled ? '启用' : '禁用'}
-                      </Badge>
+      {/* Tabs */}
+      <Tabs defaultValue="rss">
+        <div className="flex items-center justify-between">
+          <TabsList className="bg-white/5 border border-white/10">
+            <TabsTrigger
+              value="rss"
+              className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50"
+            >
+              <Rss className="h-4 w-4 mr-2 text-orange-400" />
+              RSS 订阅
+              <Badge variant="secondary" className="ml-2 bg-white/10 text-white/50 text-xs">
+                {rssSources.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger
+              value="api"
+              className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50"
+            >
+              <Globe className="h-4 w-4 mr-2 text-violet-400" />
+              API 数据源
+              <Badge variant="secondary" className="ml-2 bg-white/10 text-white/50 text-xs">
+                {apiSources.length}
+              </Badge>
+              {apiSourcesWithErrors.length > 0 && (
+                <Badge variant="secondary" className="ml-1 bg-red-500/20 text-red-400 text-xs">
+                  {apiSourcesWithErrors.length} 异常
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        {/* RSS Tab */}
+        <TabsContent value="rss">
+          <div className="glass-card rounded-xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-white/60">RSS 订阅源</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-white/50 hover:text-white hover:bg-white/10"
+                onClick={() => {
+                  const ids = rssSources.filter((s) => s.enabled).map((s) => s.id)
+                  ids.forEach((id) => fetchMutation.mutate(id))
+                  toast.success(`正在获取 ${ids.length} 个 RSS 源...`)
+                }}
+              >
+                <RefreshCw className="h-4 w-4 mr-1.5" />
+                获取全部
+              </Button>
+            </div>
+            {rssSources.length === 0 ? (
+              <p className="text-sm text-white/30 py-8 text-center">
+                暂无 RSS 订阅，点击右上角按钮添加
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {rssSources.map((source) => (
+                  <div
+                    key={source.id}
+                    className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-colors group"
+                  >
+                    <div className="flex items-center space-x-3 min-w-0">
+                      {getStatusIcon(source)}
+                      <div className="min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-white truncate">
+                            {source.name}
+                          </span>
+                          {!source.enabled && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] px-1.5 py-0 bg-white/10 text-white/40"
+                            >
+                              禁用
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-white/30 truncate mt-0.5">{source.url}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-xs text-white/30 mr-2">
+                        {getTimeAgo(source.lastFetchAt)}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-white/40 hover:text-white hover:bg-white/10"
+                        onClick={() => testMutation.mutate(source.id)}
+                        title="测试连通性"
+                      >
+                        <Wifi className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-white/40 hover:text-white hover:bg-white/10"
+                        onClick={() => fetchMutation.mutate(source.id)}
+                        title="手动抓取"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-white/40 hover:text-white hover:bg-white/10"
+                        onClick={() => handleEdit(source)}
+                        title="编辑"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-white/40 hover:text-red-400 hover:bg-red-500/10"
+                        onClick={() => {
+                          if (confirm('确定删除此数据源？')) {
+                            deleteMutation.mutate(source.id)
+                          }
+                        }}
+                        title="删除"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => testMutation.mutate(source.id)}
-                    >
-                      <Wifi className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => fetchMutation.mutate(source.id)}
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(source)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        if (confirm('确定删除此数据源？')) {
-                          deleteMutation.mutate(source.id)
-                        }
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* API Tab */}
+        <TabsContent value="api">
+          <div className="glass-card rounded-xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs text-white/30">系统内置数据源，不可添加或删除</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-white/50 hover:text-white hover:bg-white/10"
+                onClick={() => {
+                  const ids = apiSources.filter((s) => s.enabled).map((s) => s.id)
+                  ids.forEach((id) => fetchMutation.mutate(id))
+                  toast.success(`正在获取 ${ids.length} 个 API 源...`)
+                }}
+              >
+                <RefreshCw className="h-4 w-4 mr-1.5" />
+                获取全部
+              </Button>
+            </div>
+            <div className="space-y-1">
+              {apiSources.map((source) => (
+                <div
+                  key={source.id}
+                  className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-colors group"
+                >
+                  <div className="flex items-center space-x-3 min-w-0">
+                    {getStatusIcon(source)}
+                    <div className="min-w-0 flex items-center space-x-2">
+                      <span className="text-sm text-white/80 truncate">{source.name}</span>
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0 border-white/10 text-white/30"
+                      >
+                        {source.type}
+                      </Badge>
+                      {!source.enabled && (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] px-1.5 py-0 bg-white/10 text-white/30"
+                        >
+                          禁用
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    {source.lastError ? (
+                      <span className="text-xs text-red-400/60 truncate max-w-[200px]">
+                        {source.lastError}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-white/20">
+                        {getTimeAgo(source.lastFetchAt)}
+                      </span>
+                    )}
+                    <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-white/30 hover:text-white hover:bg-white/10"
+                        onClick={() => testMutation.mutate(source.id)}
+                        title="测试连通性"
+                      >
+                        <Wifi className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-white/30 hover:text-white hover:bg-white/10"
+                        onClick={() => fetchMutation.mutate(source.id)}
+                        title="手动抓取"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground truncate">{source.url}</p>
-                {source.description && (
-                  <p className="text-sm text-muted-foreground mt-1">{source.description}</p>
-                )}
-                <div className="flex items-center justify-between mt-4 text-xs text-muted-foreground">
-                  <span>
-                    上次抓取：
-                    {source.lastFetchAt ? new Date(source.lastFetchAt).toLocaleString() : '未抓取'}
-                  </span>
-                  {source.lastError && (
-                    <span className="text-red-500 truncate ml-2">{source.lastError}</span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+              ))}
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
