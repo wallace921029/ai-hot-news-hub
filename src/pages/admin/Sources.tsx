@@ -44,7 +44,7 @@ const defaultRssForm: RssForm = {
   url: '',
   parser: '',
   enabled: true,
-  fetchInterval: 30,
+  fetchInterval: 720,
   description: '',
 }
 
@@ -281,7 +281,7 @@ export function AdminSources() {
                     type="number"
                     value={form.fetchInterval}
                     onChange={(e) =>
-                      setForm({ ...form, fetchInterval: parseInt(e.target.value) || 30 })
+                      setForm({ ...form, fetchInterval: parseInt(e.target.value) || 720 })
                     }
                     min={5}
                   />

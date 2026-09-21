@@ -34,7 +34,7 @@ const sourceSchema = z.object({
   body: z.string().optional(),
   parser: z.string().optional(),
   enabled: z.boolean().default(true),
-  fetchInterval: z.number().min(5).max(1440).default(30),
+  fetchInterval: z.number().min(5).max(1440).default(720),
   description: z.string().optional(),
 })
 

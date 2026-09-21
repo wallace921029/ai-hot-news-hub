@@ -1,4 +1,6 @@
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { debounce } from 'lodash-es'
 import { api } from '@/services/api'
 import { useFilterStore } from '@/stores/filter'
 import { Input } from '@/components/ui/input'
@@ -36,6 +38,26 @@ export function HomePage() {
   } = useFilterStore()
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+
+  const [searchInput, setSearchInput] = useState(search)
+  const [lastPushed, setLastPushed] = useState(search)
+
+  const debouncedSetSearch = useMemo(
+    () =>
+      debounce((value: string) => {
+        setLastPushed(value)
+        setSearch(value)
+      }, 300),
+    [setSearch]
+  )
+
+  useEffect(() => () => debouncedSetSearch.cancel(), [debouncedSetSearch])
+
+  // 外部（如切换 tab、reset）修改 search 时同步回输入框（渲染期调整，React 官方模式）
+  if (search !== lastPushed) {
+    setLastPushed(search)
+    setSearchInput(search)
+  }
 
   const { data: sources } = useQuery({
     queryKey: ['news-sources', sourceType],
@@ -97,8 +119,18 @@ export function HomePage() {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t('home.searchPlaceholder')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => {
+              setSearchInput(e.target.value)
+              debouncedSetSearch(e.target.value)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                debouncedSetSearch.cancel()
+                setLastPushed(searchInput)
+                setSearch(searchInput)
+              }
+            }}
             className="pl-10 h-10"
           />
         </div>

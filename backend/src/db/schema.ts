@@ -35,7 +35,7 @@ export const dataSources = sqliteTable('data_sources', {
   body: text('body'),
   parser: text('parser'),
   enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
-  fetchInterval: integer('fetch_interval').notNull().default(30), // 分钟
+  fetchInterval: integer('fetch_interval').notNull().default(720), // 分钟
   lastFetchAt: integer('last_fetch_at', { mode: 'timestamp' }),
   lastError: text('last_error'),
   description: text('description'),
