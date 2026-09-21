@@ -108,7 +108,6 @@
       "registeredUsers": "Registered",
       "fetchSuccessRate": "Fetch Success Rate",
       "platformDistribution": "Platform Distribution",
-      "topCategories": "Top Categories",
       "noData": "No data"
     },
     "sources": {
@@ -204,31 +203,6 @@
       "saveFailed": "Save failed",
       "modelsFetchFailed": "Failed to fetch models",
       "noModels": "No models found"
-    },
-    "categories": {
-      "title": "Categories",
-      "total": "{{count}} categories",
-      "addCategory": "Add Category",
-      "editCategory": "Edit Category",
-      "mergeCategory": "Merge Category",
-      "name": "Name",
-      "description": "Description",
-      "icon": "Icon",
-      "sortOrder": "Sort Order",
-      "enabled": "Enabled",
-      "disabled": "Disabled",
-      "contentCount": "Content Count",
-      "deleteConfirm": "Delete this category? Associated content will not be deleted.",
-      "mergeTarget": "Merge Target",
-      "mergeConfirm": "Merge \"{{source}}\" into \"{{target}}\"? The source category will be deleted.",
-      "createSuccess": "Category created",
-      "updateSuccess": "Category updated",
-      "deleteSuccess": "Category deleted",
-      "mergeSuccess": "Categories merged",
-      "noCategories": "No categories",
-      "namePlaceholder": "Enter category name",
-      "descriptionPlaceholder": "Enter description (optional)",
-      "iconPlaceholder": "e.g. 💻"
     },
     "logs": {
       "title": "Logs",

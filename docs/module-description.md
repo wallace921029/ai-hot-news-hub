@@ -100,7 +100,6 @@ ai-hot-news-hub/
 │   │   ├── parsers/             # 内容解析器
 │   │   ├── routes/              # API 路由
 │   │   │   ├── admin/           # 管理员接口
-│   │   │   │   ├── categories.ts # 分类管理
 │   │   │   │   ├── config.ts    # 系统配置
 │   │   │   │   ├── content.ts   # 内容管理
 │   │   │   │   ├── index.ts     # 路由注册
@@ -198,7 +197,6 @@ interface UserStore {
 interface FilterStore {
   platform: string | null // 平台筛选
   sourceType: string | null // 数据源类型筛选 (rss/api/topic)
-  category: string | null // 分类筛选
   sortBy: 'score' | 'time' // 排序方式
   search: string // 搜索关键词
   page: number // 当前页码
@@ -211,7 +209,6 @@ interface FilterStore {
 | --------------------------- | ------------------ |
 | `setPlatform(platform)`     | 设置平台筛选       |
 | `setSourceType(sourceType)` | 设置数据源类型筛选 |
-| `setCategory(category)`     | 设置分类筛选       |
 | `setSortBy(sortBy)`         | 设置排序方式       |
 | `setSearch(search)`         | 设置搜索关键词     |
 | `setPage(page)`             | 设置当前页码       |
@@ -425,7 +422,6 @@ interface SourceForm {
 | -------- | -------------------- |
 | 内容列表 | 显示所有新闻内容     |
 | 筛选功能 | 按状态、类型筛选     |
-| 编辑分类 | 修改新闻的分类标签   |
 | 删除内容 | 删除单条新闻         |
 | 批量删除 | 选择多条新闻批量删除 |
 
@@ -543,18 +539,16 @@ interface NewsCardProps {
 
 **核心表：**
 
-| 表名              | 说明           |
-| ----------------- | -------------- |
-| `users`           | 用户表         |
-| `data_sources`    | 数据源表       |
-| `news_items`      | 新闻条目表     |
-| `favorites`       | 收藏表         |
-| `categories`      | 分类统计表     |
-| `news_categories` | 咨询类别表     |
-| `topics`          | 话题表（预留） |
-| `fetch_logs`      | 抓取日志表     |
-| `ai_logs`         | AI 处理日志表  |
-| `system_config`   | 系统配置表     |
+| 表名            | 说明           |
+| --------------- | -------------- |
+| `users`         | 用户表         |
+| `data_sources`  | 数据源表       |
+| `news_items`    | 新闻条目表     |
+| `favorites`     | 收藏表         |
+| `topics`        | 话题表（预留） |
+| `fetch_logs`    | 抓取日志表     |
+| `ai_logs`       | AI 处理日志表  |
+| `system_config` | 系统配置表     |
 
 #### 3.1.3 数据初始化 (`seed.ts`)
 
@@ -709,16 +703,6 @@ interface NewsQuery {
 | GET  | `/api/admin/logs/fetch`  | 获取抓取日志     |
 | GET  | `/api/admin/logs/ai`     | 获取 AI 处理日志 |
 | GET  | `/api/admin/logs/errors` | 获取错误日志     |
-
-**分类管理 (`categories.ts`)：**
-
-| 方法   | 路径                            | 说明           |
-| ------ | ------------------------------- | -------------- |
-| GET    | `/api/admin/categories`         | 获取分类列表   |
-| GET    | `/api/admin/categories/enabled` | 获取启用的分类 |
-| POST   | `/api/admin/categories`         | 创建分类       |
-| PUT    | `/api/admin/categories/:id`     | 更新分类       |
-| DELETE | `/api/admin/categories/:id`     | 删除分类       |
 
 ### 3.3 中间件模块 (`backend/src/middleware/`)
 

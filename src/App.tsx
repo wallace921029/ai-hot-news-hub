@@ -15,7 +15,6 @@ import { AdminUsers } from '@/pages/admin/Users'
 import { AdminContent } from '@/pages/admin/Content'
 import { AdminConfig } from '@/pages/admin/Config'
 import { AdminLogs } from '@/pages/admin/Logs'
-import { AdminCategories } from '@/pages/admin/Categories'
 import { Toaster } from 'sonner'
 
 // Initialize token
@@ -78,7 +77,6 @@ export default function App() {
             <Route path="users" element={<AdminUsers />} />
             <Route path="content" element={<AdminContent />} />
             <Route path="config" element={<AdminConfig />} />
-            <Route path="categories" element={<AdminCategories />} />
             <Route path="logs" element={<AdminLogs />} />
           </Route>
 

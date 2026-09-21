@@ -102,35 +102,6 @@ export const topics = sqliteTable('topics', {
     .default(sql`(unixepoch())`),
 })
 
-// 咨询类别表（管理员可编辑）
-export const newsCategories = sqliteTable('news_categories', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name').notNull().unique(),
-  description: text('description'),
-  icon: text('icon'),
-  sortOrder: integer('sort_order').notNull().default(0),
-  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-})
-
-// 分类统计表（保留用于统计展示）
-export const categories = sqliteTable('categories', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name').notNull().unique(),
-  count: integer('count').notNull().default(0),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-})
-
 // 抓取日志表
 export const fetchLogs = sqliteTable('fetch_logs', {
   id: integer('id').primaryKey({ autoIncrement: true }),

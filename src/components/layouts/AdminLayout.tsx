@@ -15,7 +15,6 @@ import {
   Sparkles,
   PanelLeftClose,
   PanelLeftOpen,
-  Tag,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
@@ -30,7 +29,6 @@ export function AdminLayout() {
     { path: '/admin/sources', label: t('admin.sources.title'), icon: Database },
     { path: '/admin/users', label: t('admin.users.title'), icon: Users },
     { path: '/admin/content', label: t('admin.content.title'), icon: FileText },
-    { path: '/admin/categories', label: t('admin.categories.title'), icon: Tag },
     { path: '/admin/config', label: t('admin.config.title'), icon: Settings },
     { path: '/admin/logs', label: t('admin.logs.title'), icon: ScrollText },
   ]

@@ -6,7 +6,6 @@ import { contentRoutes } from './content.js'
 import { configRoutes } from './config.js'
 import { statsRoutes } from './stats.js'
 import { logRoutes } from './logs.js'
-import { categoryRoutes } from './categories.js'
 import { alertsRoutes } from './alerts.js'
 import { auditRoutes } from './audit.js'
 import { logOperation } from '../../services/audit.js'
@@ -44,10 +43,6 @@ export async function adminRoutes(app: FastifyInstance) {
       resource = 'content'
       const match = url.match(/\/content\/(\d+)/)
       if (match) resourceId = match[1]
-    } else if (url.includes('/categories')) {
-      resource = 'category'
-      const match = url.match(/\/categories\/(\d+)/)
-      if (match) resourceId = match[1]
     } else if (url.includes('/config')) {
       resource = 'config'
     } else if (url.includes('/alerts')) {
@@ -73,7 +68,6 @@ export async function adminRoutes(app: FastifyInstance) {
   await app.register(configRoutes, { prefix: '/config' })
   await app.register(statsRoutes, { prefix: '/stats' })
   await app.register(logRoutes, { prefix: '/logs' })
-  await app.register(categoryRoutes, { prefix: '/categories' })
   await app.register(alertsRoutes, { prefix: '/alerts' })
   await app.register(auditRoutes, { prefix: '/audit' })
 }

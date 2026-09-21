@@ -108,7 +108,6 @@
       "registeredUsers": "注册用户",
       "fetchSuccessRate": "抓取成功率",
       "platformDistribution": "平台分布",
-      "topCategories": "热门分类",
       "noData": "暂无数据"
     },
     "sources": {
@@ -204,31 +203,6 @@
       "saveFailed": "保存失败",
       "modelsFetchFailed": "获取模型列表失败",
       "noModels": "未找到可用模型"
-    },
-    "categories": {
-      "title": "分类管理",
-      "total": "共 {{count}} 个分类",
-      "addCategory": "添加分类",
-      "editCategory": "编辑分类",
-      "mergeCategory": "合并分类",
-      "name": "分类名称",
-      "description": "描述",
-      "icon": "图标",
-      "sortOrder": "排序",
-      "enabled": "启用",
-      "disabled": "禁用",
-      "contentCount": "关联内容数",
-      "deleteConfirm": "确定删除此分类？关联的内容不会被删除。",
-      "mergeTarget": "合并目标",
-      "mergeConfirm": "确定将「{{source}}」合并到「{{target}}」？合并后源分类将被删除。",
-      "createSuccess": "分类创建成功",
-      "updateSuccess": "分类更新成功",
-      "deleteSuccess": "分类已删除",
-      "mergeSuccess": "分类合并成功",
-      "noCategories": "暂无分类",
-      "namePlaceholder": "请输入分类名称",
-      "descriptionPlaceholder": "请输入描述（可选）",
-      "iconPlaceholder": "如：💻"
     },
     "logs": {
       "title": "日志查看",

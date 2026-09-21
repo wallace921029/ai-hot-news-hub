@@ -257,89 +257,7 @@ export const favorites = sqliteTable('favorites', {
 })
 ```
 
-### 2.5 分类统计表 (categories)
-
-**功能描述：**
-存储 AI 生成的分类及其统计信息。
-
-**表结构：**
-
-| 字段名     | 类型    | 约束                          | 说明               |
-| ---------- | ------- | ----------------------------- | ------------------ |
-| id         | INTEGER | PRIMARY KEY, AUTOINCREMENT    | 分类 ID            |
-| name       | TEXT    | NOT NULL, UNIQUE              | 分类名称           |
-| count      | INTEGER | NOT NULL, DEFAULT 0           | 关联内容数量       |
-| created_at | INTEGER | NOT NULL, DEFAULT unixepoch() | 创建时间（时间戳） |
-| updated_at | INTEGER | NOT NULL, DEFAULT unixepoch() | 更新时间（时间戳） |
-
-**索引：**
-
-| 索引名                        | 字段 | 说明         |
-| ----------------------------- | ---- | ------------ |
-| sqlite_autoindex_categories_1 | id   | 主键索引     |
-| sqlite_autoindex_categories_2 | name | 名称唯一索引 |
-
-**Drizzle Schema：**
-
-```typescript
-export const categories = sqliteTable('categories', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name').notNull().unique(),
-  count: integer('count').notNull().default(0),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-})
-```
-
-### 2.6 咨询类别表 (news_categories)
-
-**功能描述：**
-存储管理员定义的咨询类别，用于内容分类。
-
-**表结构：**
-
-| 字段名      | 类型    | 约束                          | 说明               |
-| ----------- | ------- | ----------------------------- | ------------------ |
-| id          | INTEGER | PRIMARY KEY, AUTOINCREMENT    | 类别 ID            |
-| name        | TEXT    | NOT NULL, UNIQUE              | 类别名称           |
-| description | TEXT    | -                             | 描述               |
-| icon        | TEXT    | -                             | 图标               |
-| sort_order  | INTEGER | NOT NULL, DEFAULT 0           | 排序顺序           |
-| enabled     | INTEGER | NOT NULL, DEFAULT 1           | 是否启用           |
-| created_at  | INTEGER | NOT NULL, DEFAULT unixepoch() | 创建时间（时间戳） |
-| updated_at  | INTEGER | NOT NULL, DEFAULT unixepoch() | 更新时间（时间戳） |
-
-**索引：**
-
-| 索引名                             | 字段 | 说明         |
-| ---------------------------------- | ---- | ------------ |
-| sqlite_autoindex_news_categories_1 | id   | 主键索引     |
-| sqlite_autoindex_news_categories_2 | name | 名称唯一索引 |
-
-**Drizzle Schema：**
-
-```typescript
-export const newsCategories = sqliteTable('news_categories', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name').notNull().unique(),
-  description: text('description'),
-  icon: text('icon'),
-  sortOrder: integer('sort_order').notNull().default(0),
-  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-})
-```
-
-### 2.7 话题表 (topics)
+### 2.5 话题表 (topics)
 
 **功能描述：**
 预留的话题表，用于未来的话题搜索功能。
@@ -383,7 +301,7 @@ export const topics = sqliteTable('topics', {
 })
 ```
 
-### 2.8 抓取日志表 (fetch_logs)
+### 2.6 抓取日志表 (fetch_logs)
 
 **功能描述：**
 记录数据源抓取的成功/失败日志。
@@ -426,7 +344,7 @@ export const fetchLogs = sqliteTable('fetch_logs', {
 })
 ```
 
-### 2.9 AI 处理日志表 (ai_logs)
+### 2.7 AI 处理日志表 (ai_logs)
 
 **功能描述：**
 记录 AI 处理的成功/失败日志。
@@ -469,7 +387,7 @@ export const aiLogs = sqliteTable('ai_logs', {
 })
 ```
 
-### 2.10 系统配置表 (system_config)
+### 2.8 系统配置表 (system_config)
 
 **功能描述：**
 存储系统全局配置项。
@@ -677,16 +595,14 @@ true      // 布尔值
 
 ### 5.2 唯一索引
 
-| 表名            | 字段                  | 说明          |
-| --------------- | --------------------- | ------------- |
-| users           | username              | 用户名唯一    |
-| users           | email                 | 邮箱唯一      |
-| news_items      | url                   | URL 唯一      |
-| favorites       | user_id, news_item_id | 用户+新闻唯一 |
-| categories      | name                  | 分类名称唯一  |
-| news_categories | name                  | 类别名称唯一  |
-| topics          | name                  | 话题名称唯一  |
-| system_config   | key                   | 配置键唯一    |
+| 表名          | 字段                  | 说明          |
+| ------------- | --------------------- | ------------- |
+| users         | username              | 用户名唯一    |
+| users         | email                 | 邮箱唯一      |
+| news_items    | url                   | URL 唯一      |
+| favorites     | user_id, news_item_id | 用户+新闻唯一 |
+| topics        | name                  | 话题名称唯一  |
+| system_config | key                   | 配置键唯一    |
 
 ### 5.3 普通索引
 

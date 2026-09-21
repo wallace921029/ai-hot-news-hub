@@ -317,16 +317,16 @@ Authorization: Bearer <token>
 
 ### 7.1 核心表
 
-| 表名          | 说明          |
-| ------------- | ------------- |
-| users         | 用户表        |
-| data_sources  | 数据源表      |
-| news_items    | 新闻条目表    |
-| favorites     | 收藏表        |
-| categories    | 分类统计表    |
-| fetch_logs    | 抓取日志表    |
-| ai_logs       | AI 处理日志表 |
-| system_config | 系统配置表    |
+| 表名          | 说明           |
+| ------------- | -------------- |
+| users         | 用户表         |
+| data_sources  | 数据源表       |
+| news_items    | 新闻条目表     |
+| favorites     | 收藏表         |
+| topics        | 话题表（预留） |
+| fetch_logs    | 抓取日志表     |
+| ai_logs       | AI 处理日志表  |
+| system_config | 系统配置表     |
 
 ### 7.2 表关系
 

@@ -224,27 +224,6 @@ class ApiService {
     return this.request<any>('/admin/stats')
   }
 
-  // 管理员 - 类别
-  async getAdminCategories() {
-    return this.request<any[]>('/admin/categories')
-  }
-
-  async getEnabledCategories() {
-    return this.request<any[]>('/admin/categories/enabled')
-  }
-
-  async createCategory(data: any) {
-    return this.request<any>('/admin/categories', { method: 'POST', body: data })
-  }
-
-  async updateCategory(id: number, data: any) {
-    return this.request<any>(`/admin/categories/${id}`, { method: 'PUT', body: data })
-  }
-
-  async deleteCategory(id: number) {
-    return this.request<any>(`/admin/categories/${id}`, { method: 'DELETE' })
-  }
-
   // 管理员 - 日志
   async getFetchLogs(params?: { page?: number; pageSize?: number; sourceId?: number }) {
     const searchParams = new URLSearchParams()

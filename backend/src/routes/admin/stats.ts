@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify'
 import { db } from '../../db/index.js'
-import { newsItems, dataSources, fetchLogs, users, newsCategories } from '../../db/schema.js'
+import { newsItems, dataSources, fetchLogs, users } from '../../db/schema.js'
 import { sql, desc } from 'drizzle-orm'
 
 export async function statsRoutes(app: FastifyInstance) {
@@ -39,12 +39,6 @@ export async function statsRoutes(app: FastifyInstance) {
       .groupBy(newsItems.platform)
       .orderBy(desc(sql`count(*)`))
 
-    // 分类分布（按类别统计）
-    const categoryDistribution = await db
-      .select()
-      .from(newsCategories)
-      .orderBy(desc(newsCategories.sortOrder))
-
     // 每日趋势（最近 7 天）
     const dailyTrend = await db
       .select({
@@ -78,10 +72,6 @@ export async function statsRoutes(app: FastifyInstance) {
         fetchSuccessRate: totalFetches > 0 ? Math.round((successFetches / totalFetches) * 100) : 0,
       },
       platformDistribution,
-      categoryDistribution: categoryDistribution.map((c) => ({
-        name: c.name,
-        count: 0, // 实际统计需要查询 news_items 中的 category_ids
-      })),
       dailyTrend,
     }
   })
