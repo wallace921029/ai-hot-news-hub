@@ -374,3 +374,11 @@ export async function seedCategories() {
 
   console.log('✅ 咨询类别初始化完成')
 }
+
+async function main() {
+  await seedDataSources()
+  await seedCategories()
+  process.exit(0)
+}
+
+main()
