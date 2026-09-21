@@ -49,7 +49,7 @@ async function isDuplicate(url: string, title: string): Promise<boolean> {
 }
 
 // 保存新闻条目
-async function saveNewsItems(items: RawNewsItem[]) {
+async function saveNewsItems(items: RawNewsItem[], sourceType: 'rss' | 'api' | 'topic' = 'api') {
   let savedCount = 0
 
   for (const item of items) {
@@ -61,6 +61,7 @@ async function saveNewsItems(items: RawNewsItem[]) {
 
       await db.insert(newsItems).values({
         sourceId: item.sourceId,
+        sourceType,
         platform: item.platform,
         title: item.title,
         url: item.url,
@@ -101,7 +102,7 @@ async function fetchSource(source: typeof dataSources.$inferSelect) {
       parser: source.parser || undefined,
     })
 
-    const savedCount = await saveNewsItems(items)
+    const savedCount = await saveNewsItems(items, source.sourceType || 'api')
     const duration = Date.now() - startTime
 
     // 记录抓取日志
