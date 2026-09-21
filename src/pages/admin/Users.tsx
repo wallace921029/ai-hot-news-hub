@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Plus, Trash2, Key, Users } from 'lucide-react'
+import { Plus, Trash2, Key, Users, UserCheck, UserX } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 export function AdminUsers() {
@@ -207,86 +207,126 @@ export function AdminUsers() {
       </Dialog>
 
       {/* User list */}
-      <div className="rounded-xl border bg-card text-card-foreground p-5">
+      <div className="rounded-xl border bg-card text-card-foreground overflow-hidden">
         {data?.items.length === 0 ? (
           <div className="text-center py-12">
             <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
             <p className="text-muted-foreground">{t('common.noData')}</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {data?.items.map(
-              (user: {
-                id: number
-                username: string
-                email: string
-                role: string
-                status: string
-              }) => (
-                <div
-                  key={user.id}
-                  className="flex items-center justify-between px-4 py-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="w-9 h-9 rounded-full bg-foreground flex items-center justify-center text-white text-sm font-medium">
-                      {user.username[0].toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{user.username}</p>
-                      <p className="text-xs text-muted-foreground">{user.email}</p>
-                    </div>
-                    <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                      {user.role === 'admin' ? t('admin.users.admin') : t('admin.users.user')}
-                    </Badge>
-                    <Badge variant={user.status === 'active' ? 'default' : 'destructive'}>
-                      {user.status === 'active'
-                        ? t('admin.users.active')
-                        : t('admin.users.disabled')}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedUserId(user.id)
-                        setResetDialogOpen(true)
-                      }}
-                    >
-                      <Key className="h-4 w-4 mr-1" />
-                      {t('admin.users.resetPassword')}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        updateMutation.mutate({
-                          id: user.id,
-                          data: { status: user.status === 'active' ? 'disabled' : 'active' },
-                        })
-                      }
-                    >
-                      {user.status === 'active'
-                        ? t('admin.users.disabled')
-                        : t('admin.users.active')}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => {
-                        if (confirm(t('admin.users.deleteConfirm'))) {
-                          deleteMutation.mutate(user.id)
-                        }
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )
-            )}
-          </div>
+          <table className="w-full">
+            <thead>
+              <tr className="bg-muted/50 text-xs text-muted-foreground">
+                <th className="text-left font-medium py-2.5 px-4 w-12">#</th>
+                <th className="text-left font-medium py-2.5 px-4 w-56">
+                  {t('admin.users.username')}
+                </th>
+                <th className="text-left font-medium py-2.5 px-4">{t('admin.users.email')}</th>
+                <th className="text-left font-medium py-2.5 px-4 w-24">{t('admin.users.role')}</th>
+                <th className="text-left font-medium py-2.5 px-4 w-24">
+                  {t('admin.users.status')}
+                </th>
+                <th className="text-right font-medium py-2.5 px-4 w-28">{t('common.actions')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/50">
+              {data?.items.map(
+                (user: {
+                  id: number
+                  username: string
+                  email: string
+                  role: string
+                  status: string
+                }) => (
+                  <tr key={user.id} className="hover:bg-accent/50 transition-colors">
+                    <td className="py-3 px-4 text-sm text-muted-foreground">{user.id}</td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-foreground flex items-center justify-center text-white text-xs font-medium shrink-0">
+                          {user.username[0].toUpperCase()}
+                        </div>
+                        <span className="text-sm font-medium text-foreground truncate">
+                          {user.username}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-sm text-muted-foreground truncate">
+                      {user.email}
+                    </td>
+                    <td className="py-3 px-4">
+                      <Badge
+                        variant={user.role === 'admin' ? 'default' : 'secondary'}
+                        className="text-[10px]"
+                      >
+                        {user.role === 'admin' ? t('admin.users.admin') : t('admin.users.user')}
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-4">
+                      <Badge
+                        variant={user.status === 'active' ? 'default' : 'destructive'}
+                        className="text-[10px]"
+                      >
+                        {user.status === 'active'
+                          ? t('admin.users.active')
+                          : t('admin.users.disabled')}
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          title={t('admin.users.resetPassword')}
+                          onClick={() => {
+                            setSelectedUserId(user.id)
+                            setResetDialogOpen(true)
+                          }}
+                        >
+                          <Key className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          title={
+                            user.status === 'active'
+                              ? t('admin.users.disabled')
+                              : t('admin.users.active')
+                          }
+                          onClick={() =>
+                            updateMutation.mutate({
+                              id: user.id,
+                              data: { status: user.status === 'active' ? 'disabled' : 'active' },
+                            })
+                          }
+                        >
+                          {user.status === 'active' ? (
+                            <UserX className="h-3.5 w-3.5" />
+                          ) : (
+                            <UserCheck className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground/30 hover:text-destructive"
+                          title={t('common.delete')}
+                          onClick={() => {
+                            if (confirm(t('admin.users.deleteConfirm'))) {
+                              deleteMutation.mutate(user.id)
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              )}
+            </tbody>
+          </table>
         )}
       </div>
     </div>

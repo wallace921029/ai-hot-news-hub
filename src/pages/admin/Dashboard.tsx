@@ -48,7 +48,7 @@ export function AdminDashboard() {
       grid: { top: 10, right: 10, bottom: 20, left: 10, containLabel: true },
       xAxis: {
         type: 'category',
-        data: stats.platformDistribution.slice(0, 10).map((p: { platform: string }) => p.platform),
+        data: stats.platformDistribution.map((p: { platform: string }) => p.platform),
         axisLabel: {
           color: isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
           fontSize: 11,
@@ -64,7 +64,7 @@ export function AdminDashboard() {
       series: [
         {
           type: 'bar',
-          data: stats.platformDistribution.slice(0, 10).map((p: { count: number }, i: number) => ({
+          data: stats.platformDistribution.map((p: { count: number }, i: number) => ({
             value: p.count,
             itemStyle: {
               color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
@@ -74,7 +74,7 @@ export function AdminDashboard() {
               borderRadius: [6, 6, 0, 0],
             },
           })),
-          barWidth: '55%',
+          barWidth: '40%',
         },
       ],
     })

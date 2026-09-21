@@ -18,7 +18,8 @@
     "more": "More",
     "noData": "No data",
     "success": "Success",
-    "failed": "Failed"
+    "failed": "Failed",
+    "actions": "Actions"
   },
   "nav": {
     "home": "Home",
@@ -175,7 +176,6 @@
       "deselectAll": "Deselect All",
       "deleteConfirm": "Are you sure to delete this content?",
       "batchDeleteConfirm": "Are you sure to delete {{count}} items?",
-      "fetchTriggered": "Fetch all triggered",
       "deleteSuccess": "Content deleted",
       "batchDeleteSuccess": "{{count}} items deleted",
       "noContent": "No content"

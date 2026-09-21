@@ -126,6 +126,7 @@ const defaultSources = [
   {
     name: '量子位 RSS',
     type: 'rss' as const,
+    sourceType: 'rss' as const,
     url: 'https://www.qbitai.com/feed',
     parser: 'qbitai',
     enabled: true,
@@ -135,6 +136,7 @@ const defaultSources = [
   {
     name: 'Google AI Blog RSS',
     type: 'rss' as const,
+    sourceType: 'rss' as const,
     url: 'https://blog.google/technology/ai/rss/',
     parser: 'google-ai',
     enabled: true,
@@ -144,6 +146,7 @@ const defaultSources = [
   {
     name: 'MIT Technology Review RSS',
     type: 'rss' as const,
+    sourceType: 'rss' as const,
     url: 'https://www.technologyreview.com/feed/',
     parser: 'mit-tech',
     enabled: true,
@@ -200,31 +203,12 @@ const defaultSources = [
     fetchInterval: 30,
     description: 'XML 格式新闻列表',
   },
-  {
-    name: '少数派热榜',
-    type: 'rest' as const,
-    url: 'https://sspai.com/api/v1/article/tag/info/get?limit=20&offset=0&tag=hot',
-    method: 'GET' as const,
-    parser: 'sspai',
-    enabled: true,
-    fetchInterval: 30,
-    description: '返回热榜文章',
-  },
-  {
-    name: '微信读书飙升榜',
-    type: 'rest' as const,
-    url: 'https://weread.qq.com/web/category/rising',
-    method: 'GET' as const,
-    parser: 'weread',
-    enabled: true,
-    fetchInterval: 60,
-    description: '返回飙升榜',
-  },
 
   // 新增数据源
   {
     name: 'Hacker News',
     type: 'rss' as const,
+    sourceType: 'rss' as const,
     url: 'https://news.ycombinator.com/rss',
     parser: 'hackernews',
     enabled: true,

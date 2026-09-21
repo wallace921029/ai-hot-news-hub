@@ -74,7 +74,7 @@ export function AdminSources() {
 
   const createMutation = useMutation({
     mutationFn: (data: typeof defaultRssForm) =>
-      api.createSource({ ...data, type: 'rss', method: 'GET' }),
+      api.createSource({ ...data, type: 'rss', sourceType: 'rss', method: 'GET' }),
     onSuccess: () => {
       toast.success(t('admin.sources.createSuccess'))
       queryClient.invalidateQueries({ queryKey: ['admin-sources'] })

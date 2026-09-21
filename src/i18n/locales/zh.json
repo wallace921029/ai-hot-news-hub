@@ -18,7 +18,8 @@
     "more": "更多",
     "noData": "暂无数据",
     "success": "操作成功",
-    "failed": "操作失败"
+    "failed": "操作失败",
+    "actions": "操作"
   },
   "nav": {
     "home": "首页",
@@ -175,7 +176,6 @@
       "deselectAll": "取消全选",
       "deleteConfirm": "确定删除此内容？",
       "batchDeleteConfirm": "确定删除选中的 {{count}} 条内容？",
-      "fetchTriggered": "全部抓取任务已触发",
       "deleteSuccess": "内容已删除",
       "batchDeleteSuccess": "已删除 {{count}} 条内容",
       "noContent": "暂无内容"

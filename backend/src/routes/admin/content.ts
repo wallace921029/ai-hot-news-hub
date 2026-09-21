@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
-import { newsItems } from '../../db/schema.js'
+import { newsItems, dataSources } from '../../db/schema.js'
 import { eq, desc, sql, inArray } from 'drizzle-orm'
 import { fetchAllSources } from '../../scheduler/index.js'
 
@@ -35,8 +35,26 @@ export async function contentRoutes(app: FastifyInstance) {
       .where(where)
 
     const items = await db
-      .select()
+      .select({
+        id: newsItems.id,
+        sourceId: newsItems.sourceId,
+        sourceName: dataSources.name,
+        sourceType: newsItems.sourceType,
+        platform: newsItems.platform,
+        title: newsItems.title,
+        url: newsItems.url,
+        description: newsItems.description,
+        author: newsItems.author,
+        publishedAt: newsItems.publishedAt,
+        fetchedAt: newsItems.fetchedAt,
+        hotScore: newsItems.hotScore,
+        metadata: newsItems.metadata,
+        topicId: newsItems.topicId,
+        status: newsItems.status,
+        createdAt: newsItems.createdAt,
+      })
       .from(newsItems)
+      .leftJoin(dataSources, eq(newsItems.sourceId, dataSources.id))
       .where(where)
       .orderBy(desc(newsItems.createdAt))
       .limit(pageSize)

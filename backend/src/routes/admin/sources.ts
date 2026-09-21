@@ -56,6 +56,9 @@ export async function sourceRoutes(app: FastifyInstance) {
     }
 
     const data = parsed.data
+    if (data.type === 'rss' && !('sourceType' in (request.body as Record<string, unknown>))) {
+      data.sourceType = 'rss'
+    }
     const [newSource] = await db
       .insert(dataSources)
       .values({
