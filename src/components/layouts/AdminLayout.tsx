@@ -15,6 +15,7 @@ import {
   Sparkles,
   PanelLeftClose,
   PanelLeftOpen,
+  Tag,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
@@ -29,6 +30,7 @@ export function AdminLayout() {
     { path: '/admin/sources', label: t('admin.sources.title'), icon: Database },
     { path: '/admin/users', label: t('admin.users.title'), icon: Users },
     { path: '/admin/content', label: t('admin.content.title'), icon: FileText },
+    { path: '/admin/categories', label: t('admin.categories.title'), icon: Tag },
     { path: '/admin/config', label: t('admin.config.title'), icon: Settings },
     { path: '/admin/logs', label: t('admin.logs.title'), icon: ScrollText },
   ]
@@ -105,7 +107,11 @@ export function AdminLayout() {
                   )}
                 >
                   <Icon
-                    className={cn('w-4 h-4', !collapsed && 'mr-2.5', isActive && 'text-foreground')}
+                    className={cn(
+                      'w-4 h-4 shrink-0 relative -px',
+                      !collapsed && 'mr-2.5',
+                      isActive && 'text-foreground'
+                    )}
                   />
                   {!collapsed && <span className="text-sm">{item.label}</span>}
                 </Link>
@@ -115,15 +121,15 @@ export function AdminLayout() {
 
           {/* Bottom: Back to site */}
           <div className="p-2 border-t">
-            <Link to="/">
+            <Link to="/" className="block">
               <Button
                 variant="ghost"
                 className={cn(
-                  'w-full text-foreground/50 hover:text-foreground',
+                  'w-full text-foreground/50 hover:text-foreground gap-2',
                   collapsed ? 'justify-center px-2 h-9' : 'justify-start px-3 h-9'
                 )}
               >
-                <ArrowLeft className={cn('w-4 h-4', !collapsed && 'mr-2')} />
+                <ArrowLeft className={cn('w-4 h-4 shrink-0 relative -px')} />
                 {!collapsed && <span className="text-sm">{t('nav.backToFront')}</span>}
               </Button>
             </Link>

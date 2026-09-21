@@ -18,6 +18,10 @@ export interface NewsItem {
   sourceName?: string
   publishedAt: string | null
   fetchedAt: string
+  author?: string | null
+  hotScore?: number | null
+  metadata?: Record<string, unknown> | null
+  status?: 'pending' | 'processed' | 'failed'
 }
 
 export interface NewsListResponse {

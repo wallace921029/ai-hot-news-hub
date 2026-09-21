@@ -45,23 +45,42 @@ const baiduParser: HtmlParser = {
 // IT之家 (XML)
 const ithomeParser: HtmlParser = {
   parse(html, source) {
-    const $ = cheerio.load(html)
+    const $ = cheerio.load(html, { xmlMode: true })
     const items: RawNewsItem[] = []
 
     $('item').each((_, el) => {
       const $el = $(el)
-      const title = $el.find('title').text().trim()
-      const url = $el.find('link').text().trim()
-      const description = $el.find('description').text().trim()
-      const pubDate = $el.find('pubDate').text().trim()
+      const title = $el
+        .find('title')
+        .text()
+        .trim()
+        .replace(/^<!\[CDATA\[|\]\]>$/g, '')
+      const rawUrl = $el
+        .find('url')
+        .text()
+        .trim()
+        .replace(/^<!\[CDATA\[|\]\]>$/g, '')
+      const description = $el
+        .find('description')
+        .text()
+        .trim()
+        .replace(/^<!\[CDATA\[|\]\]>$/g, '')
+      const pubDate = $el.find('postdate').text().trim()
+      const hitCount = parseInt($el.find('hitcount').text().trim()) || 0
+      const commentCount = parseInt($el.find('commentcount').text().trim()) || 0
 
-      if (title) {
+      // Convert relative URL to absolute
+      const url = rawUrl.startsWith('http') ? rawUrl : `https://www.ithome.com${rawUrl}`
+
+      if (title && url) {
         items.push({
           sourceId: source.id,
           platform: 'ithome',
           title,
           url,
           description: description.substring(0, 200),
+          hotScore: hitCount,
+          metadata: { comments: commentCount },
           publishedAt: pubDate ? new Date(pubDate) : undefined,
           fetchedAt: new Date(),
         })

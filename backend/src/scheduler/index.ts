@@ -6,6 +6,7 @@ import { RestFetcher } from '../fetchers/rest.js'
 import { RssFetcher } from '../fetchers/rss.js'
 import { HtmlFetcher } from '../fetchers/html.js'
 import type { Fetcher, RawNewsItem } from '../fetchers/types.js'
+import { checkAndCreateAlerts } from '../services/alerts.js'
 
 let autoFetchEnabled = false
 
@@ -162,6 +163,13 @@ export async function fetchAllSources() {
   }
 
   console.log('✅ 所有数据源抓取完成')
+
+  // 检查并生成告警
+  try {
+    await checkAndCreateAlerts()
+  } catch (error) {
+    console.error('告警检查失败:', error)
+  }
 }
 
 // 获取自动抓取状态

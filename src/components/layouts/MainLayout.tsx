@@ -31,18 +31,18 @@ export function MainLayout() {
             </Link>
             <Link
               to="/favorites"
-              className="px-3 py-1.5 text-sm font-medium text-foreground/50 hover:text-foreground hover:bg-accent/50 rounded-md transition-colors flex items-center"
+              className="px-3 py-1.5 text-sm font-medium text-foreground/50 hover:text-foreground hover:bg-accent/50 rounded-md transition-colors inline-flex items-center gap-1"
             >
-              <Star className="w-3.5 h-3.5 mr-1" />
-              {t('nav.favorites')}
+              <Star className="w-3.5 h-3.5 shrink-0 relative -px" />
+              <span>{t('nav.favorites')}</span>
             </Link>
             {isAdmin && (
               <Link
                 to="/admin"
-                className="px-3 py-1.5 text-sm font-medium text-foreground/50 hover:text-foreground hover:bg-accent/50 rounded-md transition-colors flex items-center"
+                className="px-3 py-1.5 text-sm font-medium text-foreground/50 hover:text-foreground hover:bg-accent/50 rounded-md transition-colors inline-flex items-center gap-1"
               >
-                <LayoutDashboard className="w-3.5 h-3.5 mr-1" />
-                {t('nav.admin')}
+                <LayoutDashboard className="w-3.5 h-3.5 shrink-0 relative -px" />
+                <span>{t('nav.admin')}</span>
               </Link>
             )}
           </nav>

@@ -75,6 +75,20 @@
     "favorited": "已收藏",
     "favoriteFailed": "收藏失败"
   },
+  "newsDetail": {
+    "title": "资讯详情",
+    "source": "来源",
+    "platform": "平台",
+    "publishedAt": "发布时间",
+    "fetchedAt": "抓取时间",
+    "viewOriginal": "查看原文",
+    "description": "摘要",
+    "metadata": "附加信息",
+    "hotScore": "热度",
+    "backToList": "返回列表",
+    "notFound": "内容不存在",
+    "author": "作者"
+  },
   "favorites": {
     "title": "我的收藏",
     "empty": "暂无收藏",
@@ -191,6 +205,31 @@
       "modelsFetchFailed": "获取模型列表失败",
       "noModels": "未找到可用模型"
     },
+    "categories": {
+      "title": "分类管理",
+      "total": "共 {{count}} 个分类",
+      "addCategory": "添加分类",
+      "editCategory": "编辑分类",
+      "mergeCategory": "合并分类",
+      "name": "分类名称",
+      "description": "描述",
+      "icon": "图标",
+      "sortOrder": "排序",
+      "enabled": "启用",
+      "disabled": "禁用",
+      "contentCount": "关联内容数",
+      "deleteConfirm": "确定删除此分类？关联的内容不会被删除。",
+      "mergeTarget": "合并目标",
+      "mergeConfirm": "确定将「{{source}}」合并到「{{target}}」？合并后源分类将被删除。",
+      "createSuccess": "分类创建成功",
+      "updateSuccess": "分类更新成功",
+      "deleteSuccess": "分类已删除",
+      "mergeSuccess": "分类合并成功",
+      "noCategories": "暂无分类",
+      "namePlaceholder": "请输入分类名称",
+      "descriptionPlaceholder": "请输入描述（可选）",
+      "iconPlaceholder": "如：💻"
+    },
     "logs": {
       "title": "日志查看",
       "subtitle": "查看系统运行日志",
@@ -214,6 +253,8 @@
   },
   "pagination": {
     "total": "共 {{total}} 条",
-    "page": "{{current}} / {{total}}"
+    "page": "{{current}} / {{total}}",
+    "pageSize": "每页",
+    "items": "条"
   }
 }

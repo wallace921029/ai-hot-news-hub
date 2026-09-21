@@ -169,3 +169,32 @@ export const systemConfig = sqliteTable('system_config', {
     .notNull()
     .default(sql`(unixepoch())`),
 })
+
+// 错误告警表
+export const errorAlerts = sqliteTable('error_alerts', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  sourceId: integer('source_id').references(() => dataSources.id),
+  alertType: text('alert_type', { enum: ['consecutive_failures', 'error_spike'] }).notNull(),
+  message: text('message').notNull(),
+  details: text('details'), // JSON string
+  resolved: integer('resolved', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  resolvedAt: integer('resolved_at', { mode: 'timestamp' }),
+})
+
+// 操作日志审计表
+export const operationLogs = sqliteTable('operation_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').references(() => users.id),
+  username: text('username'),
+  action: text('action').notNull(), // e.g. 'create', 'update', 'delete'
+  resource: text('resource').notNull(), // e.g. 'source', 'user', 'content', 'config'
+  resourceId: text('resource_id'),
+  details: text('details'), // JSON string
+  ipAddress: text('ip_address'),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})

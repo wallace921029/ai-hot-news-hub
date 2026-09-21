@@ -111,7 +111,7 @@ export function AdminUsers() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button type="button" className="bg-foreground text-background hover:bg-foreground/90">
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-4 w-4 mr-2 shrink-0" />
               {t('admin.users.addUser')}
             </Button>
           </DialogTrigger>

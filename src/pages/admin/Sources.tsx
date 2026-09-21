@@ -49,9 +49,9 @@ const defaultRssForm: RssForm = {
 }
 
 function getStatusIcon(source: DataSource) {
-  if (source.lastError) return <AlertCircle className="h-3.5 w-3.5 text-destructive" />
-  if (source.lastFetchAt) return <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-  return <Clock className="h-3.5 w-3.5 text-muted-foreground/30" />
+  if (source.lastError) return <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+  if (source.lastFetchAt) return <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
+  return <Clock className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0" />
 }
 
 export function AdminSources() {
@@ -318,14 +318,14 @@ export function AdminSources() {
         <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="rss">
-              <Rss className="h-4 w-4 mr-2 text-orange-500" />
+              <Rss className="h-4 w-4 mr-2 text-orange-500 shrink-0" />
               {t('admin.sources.rssSubscriptions')}
               <Badge variant="secondary" className="ml-2 text-xs">
                 {rssSources.length}
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="api">
-              <Globe className="h-4 w-4 mr-2 text-violet-500" />
+              <Globe className="h-4 w-4 mr-2 text-violet-500 shrink-0" />
               {t('admin.sources.apiDataSources')}
               <Badge variant="secondary" className="ml-2 text-xs">
                 {apiSources.length}
@@ -352,7 +352,9 @@ export function AdminSources() {
                 onClick={handleFetchAll}
                 disabled={fetchingAll}
               >
-                <RefreshCw className={`h-4 w-4 mr-1.5 ${fetchingAll ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`h-4 w-4 mr-1.5 shrink-0 ${fetchingAll ? 'animate-spin' : ''}`}
+                />
                 {t('admin.sources.fetchAll')}
               </Button>
             </div>

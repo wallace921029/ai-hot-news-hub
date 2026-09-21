@@ -75,6 +75,20 @@
     "favorited": "Added to favorites",
     "favoriteFailed": "Failed to add favorite"
   },
+  "newsDetail": {
+    "title": "News Detail",
+    "source": "Source",
+    "platform": "Platform",
+    "publishedAt": "Published",
+    "fetchedAt": "Fetched",
+    "viewOriginal": "View Original",
+    "description": "Description",
+    "metadata": "Metadata",
+    "hotScore": "Hot Score",
+    "backToList": "Back to List",
+    "notFound": "Content not found",
+    "author": "Author"
+  },
   "favorites": {
     "title": "My Favorites",
     "empty": "No favorites",
@@ -191,6 +205,31 @@
       "modelsFetchFailed": "Failed to fetch models",
       "noModels": "No models found"
     },
+    "categories": {
+      "title": "Categories",
+      "total": "{{count}} categories",
+      "addCategory": "Add Category",
+      "editCategory": "Edit Category",
+      "mergeCategory": "Merge Category",
+      "name": "Name",
+      "description": "Description",
+      "icon": "Icon",
+      "sortOrder": "Sort Order",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "contentCount": "Content Count",
+      "deleteConfirm": "Delete this category? Associated content will not be deleted.",
+      "mergeTarget": "Merge Target",
+      "mergeConfirm": "Merge \"{{source}}\" into \"{{target}}\"? The source category will be deleted.",
+      "createSuccess": "Category created",
+      "updateSuccess": "Category updated",
+      "deleteSuccess": "Category deleted",
+      "mergeSuccess": "Categories merged",
+      "noCategories": "No categories",
+      "namePlaceholder": "Enter category name",
+      "descriptionPlaceholder": "Enter description (optional)",
+      "iconPlaceholder": "e.g. 💻"
+    },
     "logs": {
       "title": "Logs",
       "subtitle": "View system logs",
@@ -214,6 +253,8 @@
   },
   "pagination": {
     "total": "{{total}} items",
-    "page": "{{current}} / {{total}}"
+    "page": "{{current}} / {{total}}",
+    "pageSize": "Per page",
+    "items": "items"
   }
 }

@@ -25,7 +25,7 @@ export async function newsRoutes(app: FastifyInstance) {
     const offset = (page - 1) * pageSize
 
     // 构建查询条件
-    const conditions = [eq(newsItems.status, 'processed')]
+    const conditions = []
 
     if (sourceType) {
       conditions.push(eq(newsItems.sourceType, sourceType))
@@ -63,8 +63,11 @@ export async function newsRoutes(app: FastifyInstance) {
         platform: newsItems.platform,
         sourceType: newsItems.sourceType,
         sourceId: newsItems.sourceId,
+        author: newsItems.author,
         publishedAt: newsItems.publishedAt,
         fetchedAt: newsItems.fetchedAt,
+        hotScore: newsItems.hotScore,
+        metadata: newsItems.metadata,
       })
       .from(newsItems)
       .where(where)
@@ -81,6 +84,7 @@ export async function newsRoutes(app: FastifyInstance) {
     // 格式化返回数据
     const formattedItems = items.map((item) => ({
       ...item,
+      metadata: item.metadata ? JSON.parse(item.metadata) : null,
       sourceName: item.sourceId ? sourceMap.get(item.sourceId) || '未知' : '未知',
     }))
 
@@ -144,7 +148,7 @@ export async function newsRoutes(app: FastifyInstance) {
     const query = request.query as Record<string, string>
     const sourceType = query.sourceType
 
-    const conditions = [eq(newsItems.status, 'processed')]
+    const conditions = []
     if (sourceType) {
       conditions.push(eq(newsItems.sourceType, sourceType as 'rss' | 'api' | 'topic'))
     }

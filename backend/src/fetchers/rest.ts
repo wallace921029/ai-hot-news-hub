@@ -137,8 +137,11 @@ const csdnParser: PlatformParser = {
         data: Array<{
           articleTitle: string
           articleDetailUrl: string
-          readCount: number
-          commentCount: number
+          viewCount: number | string
+          commentCount: number | string
+          favorCount: number | string
+          hotRankScore: number | string
+          nickName: string
         }>
       }
     ).data
@@ -147,8 +150,13 @@ const csdnParser: PlatformParser = {
       platform: 'csdn',
       title: item.articleTitle,
       url: item.articleDetailUrl,
-      hotScore: item.readCount,
-      metadata: { comments: item.commentCount },
+      author: item.nickName,
+      hotScore: Number(item.hotRankScore) || Number(item.viewCount) || 0,
+      metadata: {
+        views: Number(item.viewCount) || 0,
+        comments: Number(item.commentCount) || 0,
+        favorites: Number(item.favorCount) || 0,
+      },
       fetchedAt: new Date(),
     }))
   },

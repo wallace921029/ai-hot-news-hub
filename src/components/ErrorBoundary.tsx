@@ -44,7 +44,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
               }}
               className="bg-foreground text-background hover:bg-foreground/90"
             >
-              <RefreshCw className="w-4 h-4 mr-2" />
+              <RefreshCw className="w-4 h-4 mr-2 shrink-0" />
               重新加载
             </Button>
           </div>

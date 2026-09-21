@@ -5,18 +5,20 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
-import { Trash2, RefreshCw, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Trash2, RefreshCw, FileText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { Pagination } from '@/components/Pagination'
 import type { NewsItem } from '@/types'
 
 export function AdminContent() {
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const queryClient = useQueryClient()
   const { t } = useTranslation()
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-content', page],
-    queryFn: () => api.getAdminContent({ page, pageSize: 20 }),
+    queryKey: ['admin-content', page, pageSize],
+    queryFn: () => api.getAdminContent({ page, pageSize }),
   })
 
   const deleteMutation = useMutation({
@@ -65,7 +67,7 @@ export function AdminContent() {
           disabled={fetchAllMutation.isPending}
         >
           <RefreshCw
-            className={`h-4 w-4 mr-2 ${fetchAllMutation.isPending ? 'animate-spin' : ''}`}
+            className={`h-4 w-4 mr-2 shrink-0 ${fetchAllMutation.isPending ? 'animate-spin' : ''}`}
           />
           {t('admin.sources.fetchAll')}
         </Button>
@@ -126,34 +128,14 @@ export function AdminContent() {
 
       {/* Pagination */}
       {data && data.pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between px-1">
-          <span className="text-xs text-muted-foreground">
-            {t('pagination.total', { total: data.pagination.total })}
-          </span>
-          <div className="flex items-center space-x-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setPage(page - 1)}
-              disabled={page <= 1}
-              className="h-8 px-3"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-xs text-muted-foreground px-2">
-              {t('pagination.page', { current: page, total: data.pagination.totalPages })}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setPage(page + 1)}
-              disabled={page >= data.pagination.totalPages}
-              className="h-8 px-3"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <Pagination
+          page={page}
+          totalPages={data.pagination.totalPages}
+          total={data.pagination.total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       )}
     </div>
   )

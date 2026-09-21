@@ -271,6 +271,36 @@ class ApiService {
 
     return this.request<any>(`/admin/logs/errors?${searchParams.toString()}`)
   }
+
+  // 管理员 - 告警
+  async getAlerts(params?: { page?: number; pageSize?: number; resolved?: boolean }) {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', String(params.page))
+    if (params?.pageSize) searchParams.set('pageSize', String(params.pageSize))
+    if (params?.resolved !== undefined) searchParams.set('resolved', String(params.resolved))
+
+    return this.request<any>(`/admin/alerts?${searchParams.toString()}`)
+  }
+
+  async resolveAlert(id: number) {
+    return this.request<any>(`/admin/alerts/${id}/resolve`, { method: 'PUT' })
+  }
+
+  // 管理员 - 审计日志
+  async getAuditLogs(params?: {
+    page?: number
+    pageSize?: number
+    userId?: number
+    resource?: string
+  }) {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', String(params.page))
+    if (params?.pageSize) searchParams.set('pageSize', String(params.pageSize))
+    if (params?.userId) searchParams.set('userId', String(params.userId))
+    if (params?.resource) searchParams.set('resource', params.resource)
+
+    return this.request<any>(`/admin/audit?${searchParams.toString()}`)
+  }
 }
 
 export const api = new ApiService()

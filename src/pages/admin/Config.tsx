@@ -126,15 +126,15 @@ export function AdminConfig() {
       <Tabs defaultValue="ai">
         <TabsList>
           <TabsTrigger value="ai">
-            <Brain className="h-4 w-4 mr-2" />
+            <Brain className="h-4 w-4 mr-2 shrink-0" />
             {t('admin.config.aiModel')}
           </TabsTrigger>
           <TabsTrigger value="basic">
-            <Settings className="h-4 w-4 mr-2" />
+            <Settings className="h-4 w-4 mr-2 shrink-0" />
             {t('admin.config.basicSettings')}
           </TabsTrigger>
           <TabsTrigger value="fetch">
-            <Clock className="h-4 w-4 mr-2" />
+            <Clock className="h-4 w-4 mr-2 shrink-0" />
             {t('admin.config.fetchSettings')}
           </TabsTrigger>
         </TabsList>
@@ -168,7 +168,9 @@ export function AdminConfig() {
                   onClick={fetchModels}
                   disabled={loadingModels}
                 >
-                  <RefreshCw className={`h-3 w-3 mr-1 ${loadingModels ? 'animate-spin' : ''}`} />
+                  <RefreshCw
+                    className={`h-3 w-3 mr-1 shrink-0 ${loadingModels ? 'animate-spin' : ''}`}
+                  />
                   {t('admin.config.getModels')}
                 </Button>
               </div>

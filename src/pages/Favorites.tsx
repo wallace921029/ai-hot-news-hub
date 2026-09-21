@@ -1,25 +1,26 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/services/api'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import { NewsCard } from '@/components/NewsCard'
 import { motion } from 'framer-motion'
 import { pageTransition, staggerContainer, staggerItem } from '@/lib/animations'
-import { Star, ChevronLeft, ChevronRight, Newspaper } from 'lucide-react'
+import { Star, Newspaper } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
+import { Pagination } from '@/components/Pagination'
 import type { Favorite } from '@/types'
 
 export function FavoritesPage() {
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const queryClient = useQueryClient()
   const { t } = useTranslation()
 
   const { data, isLoading } = useQuery({
-    queryKey: ['favorites', page],
-    queryFn: () => api.getFavorites(page, 20),
+    queryKey: ['favorites', page, pageSize],
+    queryFn: () => api.getFavorites(page, pageSize),
   })
 
   const removeFavorite = useMutation({
@@ -27,6 +28,7 @@ export function FavoritesPage() {
     onSuccess: () => {
       toast.success(t('favorites.removed'))
       queryClient.invalidateQueries({ queryKey: ['favorites'] })
+      queryClient.invalidateQueries({ queryKey: ['favorites-ids'] })
     },
     onError: () => toast.error(t('favorites.removeFailed')),
   })
@@ -39,7 +41,7 @@ export function FavoritesPage() {
         transition={{ duration: 0.3, delay: 0.1 }}
       >
         <h1 className="text-2xl font-semibold text-foreground flex items-center">
-          <Star className="w-5 h-5 mr-2 text-foreground" />
+          <Star className="w-5 h-5 mr-2 text-foreground shrink-0" />
           {t('favorites.title')}
         </h1>
       </motion.div>
@@ -97,37 +99,18 @@ export function FavoritesPage() {
       {/* Pagination */}
       {data && data.pagination.totalPages > 1 && (
         <motion.div
-          className="flex items-center justify-between px-1"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, delay: 0.2 }}
         >
-          <span className="text-xs text-muted-foreground">
-            {t('pagination.total', { total: data.pagination.total })}
-          </span>
-          <div className="flex items-center space-x-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setPage(page - 1)}
-              disabled={page <= 1}
-              className="h-8 w-8"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-xs text-muted-foreground px-2">
-              {t('pagination.page', { current: page, total: data.pagination.totalPages })}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setPage(page + 1)}
-              disabled={page >= data.pagination.totalPages}
-              className="h-8 w-8"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+          <Pagination
+            page={page}
+            totalPages={data.pagination.totalPages}
+            total={data.pagination.total}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
         </motion.div>
       )}
     </motion.div>

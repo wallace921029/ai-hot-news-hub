@@ -8,12 +8,14 @@ import { HomePage } from '@/pages/Home'
 import { FavoritesPage } from '@/pages/Favorites'
 import { LoginPage } from '@/pages/Login'
 import { RegisterPage } from '@/pages/Register'
+import { NewsDetailPage } from '@/pages/NewsDetail'
 import { AdminDashboard } from '@/pages/admin/Dashboard'
 import { AdminSources } from '@/pages/admin/Sources'
 import { AdminUsers } from '@/pages/admin/Users'
 import { AdminContent } from '@/pages/admin/Content'
 import { AdminConfig } from '@/pages/admin/Config'
 import { AdminLogs } from '@/pages/admin/Logs'
+import { AdminCategories } from '@/pages/admin/Categories'
 import { Toaster } from 'sonner'
 
 // Initialize token
@@ -60,6 +62,7 @@ export default function App() {
           >
             <Route index element={<HomePage />} />
             <Route path="favorites" element={<FavoritesPage />} />
+            <Route path="news/:id" element={<NewsDetailPage />} />
           </Route>
 
           <Route
@@ -75,6 +78,7 @@ export default function App() {
             <Route path="users" element={<AdminUsers />} />
             <Route path="content" element={<AdminContent />} />
             <Route path="config" element={<AdminConfig />} />
+            <Route path="categories" element={<AdminCategories />} />
             <Route path="logs" element={<AdminLogs />} />
           </Route>
 
