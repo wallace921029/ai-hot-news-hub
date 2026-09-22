@@ -10,6 +10,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu'
 import {
   LogOut,
@@ -43,6 +46,8 @@ export function UserMenu() {
   const navigate = useNavigate()
 
   const displayName = user?.nickname?.trim() || user?.username || '?'
+  const currentThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor
+  const ThemeIcon = currentThemeIcon
 
   const handleLogout = () => {
     logout()
@@ -74,48 +79,61 @@ export function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
 
-        <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
-          <Sun className="w-3 h-3 inline mr-1.5 align-text-bottom" />
-          {t('theme.toggle')}
-        </DropdownMenuLabel>
-        {themeOptions.map(({ value, icon: OptionIcon, labelKey }) => {
-          const active = theme === value
-          return (
-            <DropdownMenuItem
-              key={value}
-              onClick={() => setTheme(value)}
-              className="justify-between"
-            >
-              <span className="flex items-center">
-                <OptionIcon className="mr-2 h-4 w-4" />
-                {t(labelKey)}
-              </span>
-              {active && <Check className="w-4 h-4 text-primary" />}
-            </DropdownMenuItem>
-          )
-        })}
+        {/* Theme submenu */}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="cursor-pointer justify-between">
+            <span className="flex items-center">
+              <ThemeIcon className="w-4 h-4 mr-2" />
+              {t('theme.toggle')}
+            </span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent sideOffset={8} collisionPadding={16} className="w-40">
+            {themeOptions.map(({ value, icon: OptionIcon, labelKey }) => {
+              const active = theme === value
+              return (
+                <DropdownMenuItem
+                  key={value}
+                  onClick={() => setTheme(value)}
+                  className="justify-between"
+                >
+                  <span className="flex items-center">
+                    <OptionIcon className="mr-2 h-4 w-4" />
+                    {t(labelKey)}
+                  </span>
+                  {active && <Check className="w-4 h-4 text-primary" />}
+                </DropdownMenuItem>
+              )
+            })}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
 
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
-          <Languages className="w-3 h-3 inline mr-1.5 align-text-bottom" />
-          {t('language.toggle')}
-        </DropdownMenuLabel>
-        {languages.map(({ code, label, flag }) => {
-          const active = i18n.language === code
-          return (
-            <DropdownMenuItem
-              key={code}
-              onClick={() => handleLanguageSwitch(code)}
-              className="justify-between"
-            >
-              <span className="flex items-center">
-                <span className="mr-2">{flag}</span>
-                {label}
-              </span>
-              {active && <Check className="w-4 h-4 text-primary" />}
-            </DropdownMenuItem>
-          )
-        })}
+        {/* Language submenu */}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="cursor-pointer justify-between">
+            <span className="flex items-center">
+              <Languages className="w-4 h-4 mr-2" />
+              {t('language.toggle')}
+            </span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent sideOffset={8} collisionPadding={16} className="w-40">
+            {languages.map(({ code, label, flag }) => {
+              const active = i18n.language === code
+              return (
+                <DropdownMenuItem
+                  key={code}
+                  onClick={() => handleLanguageSwitch(code)}
+                  className="justify-between"
+                >
+                  <span className="flex items-center">
+                    <span className="mr-2">{flag}</span>
+                    {label}
+                  </span>
+                  {active && <Check className="w-4 h-4 text-primary" />}
+                </DropdownMenuItem>
+              )
+            })}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
 
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate('/favorites')}>
