@@ -121,6 +121,75 @@ class ApiService {
     return this.request<any>(`/favorites/${newsId}`, { method: 'DELETE' })
   }
 
+  // 社区 - 众声喧哗
+  async getCommunityPosts(params?: {
+    page?: number
+    pageSize?: number
+    search?: string
+    mine?: boolean
+  }) {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', String(params.page))
+    if (params?.pageSize) searchParams.set('pageSize', String(params.pageSize))
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.mine) searchParams.set('mine', '1')
+
+    return this.request<any>(`/community/posts?${searchParams.toString()}`)
+  }
+
+  async createCommunityPost(data: { title: string; content: string }) {
+    return this.request<{ success: boolean; post: any }>('/community/posts', {
+      method: 'POST',
+      body: data,
+    })
+  }
+
+  async getCommunityPost(id: number) {
+    return this.request<any>(`/community/posts/${id}`)
+  }
+
+  async updateCommunityPost(id: number, data: { title?: string; content?: string }) {
+    return this.request<{ success: boolean; post: any }>(`/community/posts/${id}`, {
+      method: 'PUT',
+      body: data,
+    })
+  }
+
+  async deleteCommunityPost(id: number) {
+    return this.request<{ success: boolean }>(`/community/posts/${id}`, { method: 'DELETE' })
+  }
+
+  async togglePostLike(id: number) {
+    return this.request<{ success: boolean; liked: boolean; likeCount: number }>(
+      `/community/posts/${id}/like`,
+      { method: 'POST', body: {} }
+    )
+  }
+
+  async getCommunityComments(postId: number, page = 1, pageSize = 20) {
+    return this.request<any>(
+      `/community/posts/${postId}/comments?page=${page}&pageSize=${pageSize}`
+    )
+  }
+
+  async createCommunityComment(postId: number, content: string, parentCommentId?: number) {
+    return this.request<{ success: boolean; comment: any }>(`/community/posts/${postId}/comments`, {
+      method: 'POST',
+      body: parentCommentId ? { content, parentCommentId } : { content },
+    })
+  }
+
+  async deleteCommunityComment(id: number) {
+    return this.request<{ success: boolean }>(`/community/comments/${id}`, { method: 'DELETE' })
+  }
+
+  async toggleCommentLike(id: number) {
+    return this.request<{ success: boolean; liked: boolean; likeCount: number }>(
+      `/community/comments/${id}/like`,
+      { method: 'POST', body: {} }
+    )
+  }
+
   // 管理员 - 数据源
   async getSources() {
     return this.request<any[]>('/admin/sources')

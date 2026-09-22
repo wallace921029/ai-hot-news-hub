@@ -23,7 +23,13 @@ export function MainLayout() {
               to="/"
               className="px-3 py-1.5 text-sm font-medium text-foreground/70 hover:text-foreground hover:bg-accent/50 rounded-md transition-colors"
             >
-              {t('nav.home')}
+              {t('nav.news')}
+            </Link>
+            <Link
+              to="/community"
+              className="px-3 py-1.5 text-sm font-medium text-foreground/70 hover:text-foreground hover:bg-accent/50 rounded-md transition-colors"
+            >
+              {t('nav.community')}
             </Link>
           </nav>
 

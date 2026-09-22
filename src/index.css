@@ -225,6 +225,11 @@
   }
 }
 
+/* 社区富文本编辑器：默认占满浏览器剩余高度 */
+.rich-editor-fill .bn-editor {
+  min-height: max(320px, calc(100dvh - 480px));
+}
+
 /* Article HTML content rendering */
 .article-content {
   font-size: 0.875rem;
@@ -311,4 +316,82 @@
   max-width: 100%;
   border-radius: 0.5rem;
   margin: 1rem 0;
+}
+
+/* TipTap rich text editor */
+.tiptap {
+  font-size: 0.875rem;
+  line-height: 1.75;
+  color: hsl(var(--foreground));
+  outline: none;
+  min-height: 200px;
+  word-break: break-word;
+}
+.tiptap p {
+  margin: 0.5rem 0;
+}
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: hsl(var(--muted-foreground));
+}
+.tiptap h1,
+.tiptap h2,
+.tiptap h3 {
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+  line-height: 1.4;
+}
+.tiptap h1 {
+  font-size: 1.25rem;
+}
+.tiptap h2 {
+  font-size: 1.125rem;
+}
+.tiptap h3 {
+  font-size: 1rem;
+}
+.tiptap ul,
+.tiptap ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+.tiptap ul {
+  list-style-type: disc;
+}
+.tiptap ol {
+  list-style-type: decimal;
+}
+.tiptap blockquote {
+  border-left: 3px solid hsl(var(--primary) / 0.4);
+  padding-left: 1rem;
+  margin: 0.75rem 0;
+  color: hsl(var(--muted-foreground));
+}
+.tiptap pre,
+.tiptap code {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.8125rem;
+  background: hsl(var(--muted));
+  border-radius: 0.25rem;
+}
+.tiptap code {
+  padding: 0.125rem 0.375rem;
+}
+.tiptap pre {
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  margin: 0.75rem 0;
+}
+.tiptap pre code {
+  padding: 0;
+  background: transparent;
+}
+.tiptap a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
 }

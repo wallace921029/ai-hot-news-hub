@@ -1,10 +1,18 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router'
+import { Suspense, lazy } from 'react'
 import { useUserStore } from '@/stores/user'
 import { api } from '@/services/api'
 import { MainLayout } from '@/components/layouts/MainLayout'
 import { AdminLayout } from '@/components/layouts/AdminLayout'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { HomePage } from '@/pages/Home'
+import { CommunityPage } from '@/pages/Community'
+import { PostDetailPage } from '@/pages/PostDetail'
+
+// 富文本编辑器依赖较重（TipTap + 表情库），懒加载避免拖慢首屏
+const PostEditorPage = lazy(() =>
+  import('@/pages/PostEditor').then((m) => ({ default: m.PostEditorPage }))
+)
 import { FavoritesPage } from '@/pages/Favorites'
 import { LoginPage } from '@/pages/Login'
 import { RegisterPage } from '@/pages/Register'
@@ -62,6 +70,24 @@ export default function App() {
             }
           >
             <Route index element={<HomePage />} />
+            <Route path="community" element={<CommunityPage />} />
+            <Route
+              path="community/new"
+              element={
+                <Suspense fallback={null}>
+                  <PostEditorPage />
+                </Suspense>
+              }
+            />
+            <Route path="community/:id" element={<PostDetailPage />} />
+            <Route
+              path="community/:id/edit"
+              element={
+                <Suspense fallback={null}>
+                  <PostEditorPage />
+                </Suspense>
+              }
+            />
             <Route path="favorites" element={<FavoritesPage />} />
             <Route path="news/:id" element={<NewsDetailPage />} />
             <Route path="profile" element={<ProfilePage />} />

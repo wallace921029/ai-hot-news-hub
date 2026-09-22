@@ -88,6 +88,54 @@ export const favorites = sqliteTable('favorites', {
     .default(sql`(unixepoch())`),
 })
 
+// 社区帖子表（众声喧哗）
+export const communityPosts = sqliteTable('community_posts', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  likeCount: integer('like_count').notNull().default(0),
+  commentCount: integer('comment_count').notNull().default(0),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})
+
+// 社区评论表（支持单层回复：parentCommentId 指向顶楼）
+export const communityComments = sqliteTable('community_comments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  postId: integer('post_id')
+    .notNull()
+    .references(() => communityPosts.id),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  parentCommentId: integer('parent_comment_id'),
+  content: text('content').notNull(),
+  likeCount: integer('like_count').notNull().default(0),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})
+
+// 社区点赞表（帖子 / 评论通用，用户防重）
+export const communityLikes = sqliteTable('community_likes', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  targetType: text('target_type', { enum: ['post', 'comment'] }).notNull(),
+  targetId: integer('target_id').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})
+
 // 话题表（预留，暂不实现）
 export const topics = sqliteTable('topics', {
   id: integer('id').primaryKey({ autoIncrement: true }),

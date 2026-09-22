@@ -95,3 +95,46 @@ export interface LogItem {
 export interface FetchLog extends LogItem {
   sourceId: number
 }
+
+export interface CommunityAuthor {
+  id: number
+  username: string
+  nickname?: string | null
+  avatar?: string | null
+}
+
+export interface CommunityPost {
+  id: number
+  userId: number
+  title: string
+  content: string
+  likeCount: number
+  commentCount: number
+  createdAt: string
+  updatedAt: string
+  likedByMe?: boolean
+  author: CommunityAuthor | null
+}
+
+export interface CommunityComment {
+  id: number
+  postId: number
+  userId: number
+  parentCommentId: number | null
+  content: string
+  likeCount: number
+  createdAt: string
+  likedByMe?: boolean
+  author: CommunityAuthor | null
+  replies?: CommunityComment[]
+}
+
+export interface CommunityListResponse<T> {
+  items: T[]
+  pagination: {
+    page: number
+    pageSize: number
+    total: number
+    totalPages: number
+  }
+}

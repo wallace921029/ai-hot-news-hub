@@ -21,6 +21,9 @@
     ]
   },
   "dependencies": {
+    "@blocknote/core": "^0.54.2",
+    "@blocknote/react": "^0.54.2",
+    "@blocknote/shadcn": "^0.54.2",
     "@dicebear/collection": "^9.4.2",
     "@dicebear/core": "^9.4.3",
     "@fastify/cors": "^11.3.0",
@@ -47,6 +50,7 @@
     "drizzle-orm": "^0.45.2",
     "echarts": "^6.1.0",
     "echarts-for-react": "^3.0.6",
+    "emoji-picker-react": "^4.22.2",
     "fastify": "^5.12.5",
     "framer-motion": "^13.4.0",
     "i18next": "^26.4.2",
