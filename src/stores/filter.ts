@@ -17,7 +17,7 @@ interface FilterState {
 }
 
 export const useFilterStore = create<FilterState>((set) => ({
-  sourceType: 'api',
+  sourceType: 'rss',
   sourceId: null,
   platform: null,
   search: '',
@@ -31,5 +31,5 @@ export const useFilterStore = create<FilterState>((set) => ({
   setPage: (page) => set({ page }),
   setPageSize: (pageSize) => set({ pageSize, page: 1 }),
   reset: () =>
-    set({ sourceType: 'api', sourceId: null, platform: null, search: '', page: 1, pageSize: 10 }),
+    set({ sourceType: 'rss', sourceId: null, platform: null, search: '', page: 1, pageSize: 10 }),
 }))

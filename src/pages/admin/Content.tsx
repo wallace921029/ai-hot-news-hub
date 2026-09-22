@@ -23,15 +23,15 @@ import { Pagination } from '@/components/Pagination'
 import type { NewsItem } from '@/types'
 
 const sourceTypeConfig = {
-  api: { icon: Globe, labelKey: 'home.apiSource' },
   rss: { icon: Rss, labelKey: 'home.rssSource' },
+  api: { icon: Globe, labelKey: 'home.apiSource' },
   topic: { icon: MessageSquare, labelKey: 'home.topicSource' },
 }
 
 export function AdminContent() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-  const [sourceType, setSourceType] = useState<'api' | 'rss' | 'topic'>('api')
+  const [sourceType, setSourceType] = useState<'api' | 'rss' | 'topic'>('rss')
   const [sourceId, setSourceId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')

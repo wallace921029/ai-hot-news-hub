@@ -18,8 +18,8 @@ import { Pagination } from '@/components/Pagination'
 import type { NewsItem } from '@/types'
 
 const sourceTypeConfig = {
-  api: { icon: Globe, labelKey: 'home.apiSource' },
   rss: { icon: Rss, labelKey: 'home.rssSource' },
+  api: { icon: Globe, labelKey: 'home.apiSource' },
   topic: { icon: MessageSquare, labelKey: 'home.topicSource' },
 }
 
