@@ -1,11 +1,9 @@
 import { Outlet, Link } from 'react-router'
-import { useUserStore } from '@/stores/user'
 import { UserMenu } from '@/components/UserMenu'
-import { Star, LayoutDashboard, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 export function MainLayout() {
-  const { isAdmin } = useUserStore()
   const { t } = useTranslation()
 
   return (
@@ -27,22 +25,6 @@ export function MainLayout() {
             >
               {t('nav.home')}
             </Link>
-            <Link
-              to="/favorites"
-              className="px-3 py-1.5 text-sm font-medium text-foreground/50 hover:text-foreground hover:bg-accent/50 rounded-md transition-colors inline-flex items-center gap-1"
-            >
-              <Star className="w-3.5 h-3.5 shrink-0 relative -px" />
-              <span>{t('nav.favorites')}</span>
-            </Link>
-            {isAdmin && (
-              <Link
-                to="/admin"
-                className="px-3 py-1.5 text-sm font-medium text-foreground/50 hover:text-foreground hover:bg-accent/50 rounded-md transition-colors inline-flex items-center gap-1"
-              >
-                <LayoutDashboard className="w-3.5 h-3.5 shrink-0 relative -px" />
-                <span>{t('nav.admin')}</span>
-              </Link>
-            )}
           </nav>
 
           <div className="ml-auto flex items-center space-x-1.5">

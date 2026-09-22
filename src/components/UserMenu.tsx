@@ -11,7 +11,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogOut, User, ShieldCheck, Sun, Moon, Monitor, Languages, Check } from 'lucide-react'
+import {
+  LogOut,
+  User,
+  ShieldCheck,
+  Sun,
+  Moon,
+  Monitor,
+  Languages,
+  Check,
+  Star,
+  LayoutDashboard,
+} from 'lucide-react'
 import { UserAvatar } from '@/components/UserAvatar'
 
 const themeOptions: { value: Theme; icon: typeof Sun; labelKey: string }[] = [
@@ -26,7 +37,7 @@ const languages = [
 ]
 
 export function UserMenu() {
-  const { user, logout } = useUserStore()
+  const { user, logout, isAdmin } = useUserStore()
   const { theme, setTheme } = useThemeStore()
   const { i18n, t } = useTranslation()
   const navigate = useNavigate()
@@ -105,6 +116,18 @@ export function UserMenu() {
             </DropdownMenuItem>
           )
         })}
+
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate('/favorites')}>
+          <Star className="w-4 h-4 mr-2" />
+          {t('nav.favorites')}
+        </DropdownMenuItem>
+        {isAdmin && (
+          <DropdownMenuItem onClick={() => navigate('/admin')}>
+            <LayoutDashboard className="w-4 h-4 mr-2" />
+            {t('nav.admin')}
+          </DropdownMenuItem>
+        )}
 
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate('/profile')}>
