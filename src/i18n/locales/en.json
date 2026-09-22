@@ -26,7 +26,9 @@
     "favorites": "Favorites",
     "admin": "Admin",
     "backToFront": "Back to Site",
-    "logout": "Logout"
+    "logout": "Logout",
+    "profile": "Profile",
+    "security": "Security"
   },
   "theme": {
     "light": "Light",
@@ -44,6 +46,8 @@
     "register": "Register",
     "email": "Email",
     "password": "Password",
+    "account": "Email or username",
+    "accountPlaceholder": "Enter email or username",
     "username": "Username",
     "inviteCode": "Invite Code",
     "loginTitle": "Sign in to your account",
@@ -229,5 +233,29 @@
     "page": "{{current}} / {{total}}",
     "pageSize": "Per page",
     "items": "items"
+  },
+  "profile": {
+    "title": "Profile",
+    "subtitle": "Manage your avatar and nickname",
+    "avatar": "Avatar",
+    "avatarDesc": "Pick a style and roll the dice to randomize",
+    "regenerate": "Regenerate",
+    "info": "Basic Info",
+    "nickname": "Nickname",
+    "nicknamePlaceholder": "Set your nickname (optional)",
+    "save": "Save",
+    "saved": "Profile updated"
+  },
+  "security": {
+    "title": "Security",
+    "subtitle": "Manage your account security",
+    "changePassword": "Change Password",
+    "passwordDesc": "Your current session stays signed in after changing",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "passwordHint": "At least 6 characters",
+    "passwordMismatch": "Passwords do not match",
+    "success": "Password changed"
   }
 }

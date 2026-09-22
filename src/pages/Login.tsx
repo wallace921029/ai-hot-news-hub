@@ -6,13 +6,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { Sparkles, Mail, Lock, ArrowRight } from 'lucide-react'
+import { Sparkles, User, Lock, ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { LanguageSwitch } from '@/components/LanguageSwitch'
 
 export function LoginPage() {
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const { login } = useUserStore()
@@ -24,7 +24,7 @@ export function LoginPage() {
     setLoading(true)
 
     try {
-      await login(email, password)
+      await login(identifier.trim(), password)
       toast.success(t('auth.loginSuccess'))
       navigate('/')
     } catch (error) {
@@ -84,17 +84,18 @@ export function LoginPage() {
             transition={{ duration: 0.4, delay: 0.2 }}
           >
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">
-                {t('auth.email')}
+              <Label htmlFor="identifier" className="text-sm font-medium">
+                {t('auth.account')}
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder={t('auth.emailPlaceholder')}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="identifier"
+                  type="text"
+                  autoComplete="username"
+                  placeholder={t('auth.accountPlaceholder')}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   className="pl-10 h-11 bg-background/50"
                   required
                 />

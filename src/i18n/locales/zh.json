@@ -26,7 +26,9 @@
     "favorites": "收藏",
     "admin": "管理后台",
     "backToFront": "返回前台",
-    "logout": "退出登录"
+    "logout": "退出登录",
+    "profile": "个人资料",
+    "security": "安全设置"
   },
   "theme": {
     "light": "浅色",
@@ -44,6 +46,8 @@
     "register": "注册",
     "email": "邮箱",
     "password": "密码",
+    "account": "邮箱或用户名",
+    "accountPlaceholder": "请输入邮箱或用户名",
     "username": "用户名",
     "inviteCode": "邀请码",
     "loginTitle": "登录您的账号",
@@ -229,5 +233,29 @@
     "page": "{{current}} / {{total}}",
     "pageSize": "每页",
     "items": "条"
+  },
+  "profile": {
+    "title": "个人资料",
+    "subtitle": "管理你的头像和昵称",
+    "avatar": "头像",
+    "avatarDesc": "选择一个风格，点击骰子随机生成",
+    "regenerate": "换一个",
+    "info": "基本信息",
+    "nickname": "昵称",
+    "nicknamePlaceholder": "设置你的昵称（可选）",
+    "save": "保存",
+    "saved": "资料已更新"
+  },
+  "security": {
+    "title": "安全设置",
+    "subtitle": "管理你的账号安全",
+    "changePassword": "修改密码",
+    "passwordDesc": "修改成功后，当前登录状态保持不变",
+    "currentPassword": "当前密码",
+    "newPassword": "新密码",
+    "confirmPassword": "确认新密码",
+    "passwordHint": "至少 6 个字符",
+    "passwordMismatch": "两次输入的密码不一致",
+    "success": "密码已修改"
   }
 }

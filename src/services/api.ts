@@ -43,10 +43,10 @@ class ApiService {
   }
 
   // 认证
-  async login(email: string, password: string) {
+  async login(identifier: string, password: string) {
     return this.request<{ user: any; token: string }>('/auth/login', {
       method: 'POST',
-      body: { email, password },
+      body: { identifier, password },
     })
   }
 
@@ -59,6 +59,17 @@ class ApiService {
 
   async getMe() {
     return this.request<any>('/auth/me')
+  }
+
+  async updateProfile(data: { nickname?: string; avatar?: string }) {
+    return this.request<any>('/auth/profile', { method: 'PUT', body: data })
+  }
+
+  async updatePassword(currentPassword: string, newPassword: string) {
+    return this.request<{ success: boolean }>('/auth/password', {
+      method: 'PUT',
+      body: { currentPassword, newPassword },
+    })
   }
 
   // 新闻

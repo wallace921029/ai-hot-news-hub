@@ -3,8 +3,8 @@ import cors from '@fastify/cors'
 import { env } from './utils/env.js'
 import { db } from './db/index.js'
 import { users, systemConfig } from './db/schema.js'
-import { eq } from 'drizzle-orm'
-import { hashPassword } from './utils/auth.js'
+import { eq, asc } from 'drizzle-orm'
+import { hashPassword, comparePassword } from './utils/auth.js'
 import { authRoutes } from './routes/auth.js'
 import { newsRoutes } from './routes/news.js'
 import { favoriteRoutes } from './routes/favorites.js'
@@ -53,10 +53,15 @@ app.post(
 
 // 初始化默认数据
 async function initializeDefaults() {
-  // 检查是否存在管理员账号
-  const existingAdmin = await db.select().from(users).where(eq(users.role, 'admin')).limit(1)
+  // 每次启动将管理员账号同步为 .env 配置（取最早创建的管理员，即引导账号）
+  const [bootstrapAdmin] = await db
+    .select()
+    .from(users)
+    .where(eq(users.role, 'admin'))
+    .orderBy(asc(users.id))
+    .limit(1)
 
-  if (existingAdmin.length === 0) {
+  if (!bootstrapAdmin) {
     // 创建默认管理员
     const passwordHash = await hashPassword(env.ADMIN_PASSWORD)
     await db.insert(users).values({
@@ -67,6 +72,27 @@ async function initializeDefaults() {
       status: 'active',
     })
     app.log.info('✅ 默认管理员账号已创建')
+  } else {
+    const passwordMatches = await comparePassword(env.ADMIN_PASSWORD, bootstrapAdmin.passwordHash)
+    if (
+      bootstrapAdmin.username !== env.ADMIN_USERNAME ||
+      bootstrapAdmin.email !== env.ADMIN_EMAIL ||
+      !passwordMatches
+    ) {
+      try {
+        await db
+          .update(users)
+          .set({
+            username: env.ADMIN_USERNAME,
+            email: env.ADMIN_EMAIL,
+            passwordHash: await hashPassword(env.ADMIN_PASSWORD),
+          })
+          .where(eq(users.id, bootstrapAdmin.id))
+        app.log.info('✅ 管理员账号已按 .env 同步更新')
+      } catch (err) {
+        app.log.error(`⚠️ 管理员账号同步失败（.env 的用户名/邮箱可能与其他账号冲突）: ${err}`)
+      }
+    }
   }
 
   // 初始化默认配置

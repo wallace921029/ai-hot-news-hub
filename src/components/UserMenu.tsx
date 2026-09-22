@@ -9,8 +9,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogOut } from 'lucide-react'
+import { LogOut, User, ShieldCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { UserAvatar } from '@/components/UserAvatar'
 
 export function UserMenu() {
   const { user, logout } = useUserStore()
@@ -26,18 +27,25 @@ export function UserMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-          <div className="w-7 h-7 rounded-full bg-foreground flex items-center justify-center text-[10px] font-medium text-background">
-            {user?.username?.charAt(0).toUpperCase()}
-          </div>
+          <UserAvatar avatar={user?.avatar} username={user?.username || '?'} size={28} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium">{user?.username}</p>
+            <p className="text-sm font-medium">{user?.nickname || user?.username}</p>
             <p className="text-xs text-muted-foreground">{user?.email}</p>
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate('/profile')}>
+          <User className="w-4 h-4 mr-2" />
+          {t('nav.profile')}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/settings/security')}>
+          <ShieldCheck className="w-4 h-4 mr-2" />
+          {t('nav.security')}
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={handleLogout}

@@ -2,6 +2,8 @@ export interface User {
   id: number
   username: string
   email: string
+  nickname?: string | null
+  avatar?: string | null
   role: 'admin' | 'user'
   status: 'active' | 'disabled'
   createdAt?: string

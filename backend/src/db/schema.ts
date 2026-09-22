@@ -13,6 +13,8 @@ export const users = sqliteTable('users', {
   status: text('status', { enum: ['active', 'disabled'] })
     .notNull()
     .default('active'),
+  nickname: text('nickname'),
+  avatar: text('avatar'), // DiceBear 配置，格式 "style:seed"
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),

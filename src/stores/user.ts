@@ -9,11 +9,13 @@ interface UserState {
   isAuthenticated: boolean
   isAdmin: boolean
   isInitialized: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (identifier: string, password: string) => Promise<void>
   register: (username: string, email: string, password: string, inviteCode: string) => Promise<void>
   logout: () => void
   fetchUser: () => Promise<void>
   setToken: (token: string | null) => void
+  applyUserProfile: (user: User) => void
+  initialize: () => Promise<void>
 }
 
 export const useUserStore = create<UserState>()(
@@ -30,8 +32,12 @@ export const useUserStore = create<UserState>()(
         set({ token })
       },
 
-      login: async (email: string, password: string) => {
-        const { user, token } = await api.login(email, password)
+      applyUserProfile: (user: User) => {
+        set({ user, isAdmin: user.role === 'admin' })
+      },
+
+      login: async (identifier: string, password: string) => {
+        const { user, token } = await api.login(identifier, password)
         api.setToken(token)
         set({
           user,

@@ -9,6 +9,8 @@ import { FavoritesPage } from '@/pages/Favorites'
 import { LoginPage } from '@/pages/Login'
 import { RegisterPage } from '@/pages/Register'
 import { NewsDetailPage } from '@/pages/NewsDetail'
+import { ProfilePage } from '@/pages/Profile'
+import { SecuritySettingsPage } from '@/pages/SecuritySettings'
 import { AdminDashboard } from '@/pages/admin/Dashboard'
 import { AdminSources } from '@/pages/admin/Sources'
 import { AdminUsers } from '@/pages/admin/Users'
@@ -62,6 +64,8 @@ export default function App() {
             <Route index element={<HomePage />} />
             <Route path="favorites" element={<FavoritesPage />} />
             <Route path="news/:id" element={<NewsDetailPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="settings/security" element={<SecuritySettingsPage />} />
           </Route>
 
           <Route
