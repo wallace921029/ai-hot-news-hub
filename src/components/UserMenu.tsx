@@ -10,11 +10,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu'
-import { LogOut, User, ShieldCheck, Sun, Moon, Monitor, Languages } from 'lucide-react'
+import { LogOut, User, ShieldCheck, Sun, Moon, Monitor, Languages, Check } from 'lucide-react'
 import { UserAvatar } from '@/components/UserAvatar'
 
 const themeOptions: { value: Theme; icon: typeof Sun; labelKey: string }[] = [
@@ -35,8 +32,6 @@ export function UserMenu() {
   const navigate = useNavigate()
 
   const displayName = user?.nickname?.trim() || user?.username || '?'
-  const currentThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor
-  const ThemeIcon = currentThemeIcon
 
   const handleLogout = () => {
     logout()
@@ -59,7 +54,7 @@ export function UserMenu() {
           <span className="text-sm font-medium max-w-[8rem] truncate">{displayName}</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
+      <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium">{displayName}</p>
@@ -68,45 +63,48 @@ export function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
 
-        {/* Theme submenu */}
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="cursor-pointer">
-            <ThemeIcon className="w-4 h-4 mr-2" />
-            {t('theme.toggle')}
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-36">
-            {themeOptions.map(({ value, icon: OptionIcon, labelKey }) => (
-              <DropdownMenuItem
-                key={value}
-                onClick={() => setTheme(value)}
-                className={theme === value ? 'bg-accent' : ''}
-              >
+        <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+          <Sun className="w-3 h-3 inline mr-1.5 align-text-bottom" />
+          {t('theme.toggle')}
+        </DropdownMenuLabel>
+        {themeOptions.map(({ value, icon: OptionIcon, labelKey }) => {
+          const active = theme === value
+          return (
+            <DropdownMenuItem
+              key={value}
+              onClick={() => setTheme(value)}
+              className="justify-between"
+            >
+              <span className="flex items-center">
                 <OptionIcon className="mr-2 h-4 w-4" />
-                <span>{t(labelKey)}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+                {t(labelKey)}
+              </span>
+              {active && <Check className="w-4 h-4 text-primary" />}
+            </DropdownMenuItem>
+          )
+        })}
 
-        {/* Language submenu */}
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="cursor-pointer">
-            <Languages className="w-4 h-4 mr-2" />
-            {t('language.toggle')}
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-36">
-            {languages.map(({ code, label, flag }) => (
-              <DropdownMenuItem
-                key={code}
-                onClick={() => handleLanguageSwitch(code)}
-                className={i18n.language === code ? 'bg-accent' : ''}
-              >
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+          <Languages className="w-3 h-3 inline mr-1.5 align-text-bottom" />
+          {t('language.toggle')}
+        </DropdownMenuLabel>
+        {languages.map(({ code, label, flag }) => {
+          const active = i18n.language === code
+          return (
+            <DropdownMenuItem
+              key={code}
+              onClick={() => handleLanguageSwitch(code)}
+              className="justify-between"
+            >
+              <span className="flex items-center">
                 <span className="mr-2">{flag}</span>
-                <span>{label}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+                {label}
+              </span>
+              {active && <Check className="w-4 h-4 text-primary" />}
+            </DropdownMenuItem>
+          )
+        })}
 
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate('/profile')}>
