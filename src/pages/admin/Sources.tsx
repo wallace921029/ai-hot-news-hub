@@ -33,7 +33,6 @@ import type { DataSource } from '@/types'
 interface RssForm {
   name: string
   url: string
-  parser: string
   enabled: boolean
   fetchInterval: number
   description: string
@@ -42,7 +41,6 @@ interface RssForm {
 const defaultRssForm: RssForm = {
   name: '',
   url: '',
-  parser: '',
   enabled: true,
   fetchInterval: 720,
   description: '',
@@ -193,7 +191,6 @@ export function AdminSources() {
     setForm({
       name: source.name,
       url: source.url,
-      parser: source.parser || '',
       enabled: source.enabled,
       fetchInterval: source.fetchInterval,
       description: source.description || '',
@@ -264,14 +261,6 @@ export function AdminSources() {
                   value={form.url}
                   onChange={(e) => setForm({ ...form, url: e.target.value })}
                   placeholder="https://example.com/feed"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t('admin.sources.parserId')}</Label>
-                <Input
-                  value={form.parser}
-                  onChange={(e) => setForm({ ...form, parser: e.target.value })}
-                  placeholder={t('admin.sources.parserPlaceholder')}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">

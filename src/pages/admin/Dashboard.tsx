@@ -48,7 +48,7 @@ export function AdminDashboard() {
       grid: { top: 10, right: 10, bottom: 20, left: 10, containLabel: true },
       xAxis: {
         type: 'category',
-        data: stats.platformDistribution.map((p: { platform: string }) => p.platform),
+        data: stats.platformDistribution.map((p: { name: string }) => p.name),
         axisLabel: {
           color: isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
           fontSize: 11,

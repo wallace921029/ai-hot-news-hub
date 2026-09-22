@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { newsItems, dataSources } from '../../db/schema.js'
-import { eq, desc, sql, inArray } from 'drizzle-orm'
+import { eq, desc, sql, inArray, and, like } from 'drizzle-orm'
 import { fetchAllSources } from '../../scheduler/index.js'
 
 const updateSchema = z.object({
@@ -17,6 +17,8 @@ export async function contentRoutes(app: FastifyInstance) {
     const pageSize = Math.min(100, Math.max(1, parseInt(query.pageSize) || 20))
     const status = query.status || undefined
     const sourceType = query.sourceType || undefined
+    const search = query.search?.trim() || undefined
+    const sourceId = parseInt(query.sourceId) || undefined
     const offset = (page - 1) * pageSize
 
     const conditions = []
@@ -26,8 +28,14 @@ export async function contentRoutes(app: FastifyInstance) {
     if (sourceType) {
       conditions.push(eq(newsItems.sourceType, sourceType as 'rss' | 'api' | 'topic'))
     }
+    if (search) {
+      conditions.push(like(newsItems.title, `%${search}%`))
+    }
+    if (sourceId) {
+      conditions.push(eq(newsItems.sourceId, sourceId))
+    }
 
-    const where = conditions.length > 0 ? sql`${conditions[0]}` : undefined
+    const where = conditions.length > 0 ? and(...conditions) : undefined
 
     const [{ count }] = await db
       .select({ count: sql<number>`count(*)` })

@@ -117,7 +117,6 @@ export function NewsDetailPage() {
                 {item.sourceName}
               </Badge>
             )}
-            <Badge variant="outline">{item.platform}</Badge>
             {item.author && (
               <span className="text-sm text-muted-foreground flex items-center gap-1">
                 <User className="w-3 h-3 shrink-0" />

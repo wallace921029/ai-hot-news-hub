@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { db } from '../../db/index.js'
 import { newsItems, dataSources, fetchLogs, users } from '../../db/schema.js'
-import { sql, desc } from 'drizzle-orm'
+import { sql, desc, eq } from 'drizzle-orm'
 
 export async function statsRoutes(app: FastifyInstance) {
   // 获取统计数据
@@ -29,14 +29,15 @@ export async function statsRoutes(app: FastifyInstance) {
     // 用户数量
     const [{ totalUsers }] = await db.select({ totalUsers: sql<number>`count(*)` }).from(users)
 
-    // 平台分布
+    // 平台分布（按数据源名称分组）
     const platformDistribution = await db
       .select({
-        platform: newsItems.platform,
+        name: sql<string>`coalesce(${dataSources.name}, ${newsItems.platform})`,
         count: sql<number>`count(*)`,
       })
       .from(newsItems)
-      .groupBy(newsItems.platform)
+      .leftJoin(dataSources, eq(newsItems.sourceId, dataSources.id))
+      .groupBy(sql`coalesce(${dataSources.name}, ${newsItems.platform})`)
       .orderBy(desc(sql`count(*)`))
 
     // 每日趋势（最近 7 天）

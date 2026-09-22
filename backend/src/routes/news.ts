@@ -113,9 +113,20 @@ export async function newsRoutes(app: FastifyInstance) {
       return reply.status(404).send({ error: '内容不存在' })
     }
 
+    let sourceName: string | undefined
+    if (item.sourceId) {
+      const [source] = await db
+        .select({ name: dataSources.name })
+        .from(dataSources)
+        .where(eq(dataSources.id, item.sourceId))
+        .limit(1)
+      sourceName = source?.name
+    }
+
     return {
       ...item,
       metadata: item.metadata ? JSON.parse(item.metadata) : null,
+      sourceName,
     }
   })
 

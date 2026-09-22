@@ -136,8 +136,10 @@ export function AdminLayout() {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto scrollbar-thin">
-          <div className="px-4 lg:px-6 py-6 max-w-[1600px]">
-            <Outlet />
+          <div className="container py-6">
+            <div className="max-w-5xl mx-auto">
+              <Outlet />
+            </div>
           </div>
         </main>
       </div>

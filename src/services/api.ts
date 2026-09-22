@@ -169,12 +169,16 @@ class ApiService {
     pageSize?: number
     status?: string
     sourceType?: string
+    search?: string
+    sourceId?: number
   }) {
     const searchParams = new URLSearchParams()
     if (params?.page) searchParams.set('page', String(params.page))
     if (params?.pageSize) searchParams.set('pageSize', String(params.pageSize))
     if (params?.status) searchParams.set('status', params.status)
     if (params?.sourceType) searchParams.set('sourceType', params.sourceType)
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.sourceId) searchParams.set('sourceId', String(params.sourceId))
 
     return this.request<any>(`/admin/content?${searchParams.toString()}`)
   }

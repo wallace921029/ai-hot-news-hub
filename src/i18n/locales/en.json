@@ -123,8 +123,6 @@
       "fetching": "Fetching {{count}} sources...",
       "name": "Name",
       "url": "URL",
-      "parserId": "Parser ID",
-      "parserPlaceholder": "Optional, e.g. qbitai",
       "fetchInterval": "Fetch Interval (min)",
       "description": "Description",
       "enabled": "Enabled",
@@ -178,7 +176,8 @@
       "batchDeleteConfirm": "Are you sure to delete {{count}} items?",
       "deleteSuccess": "Content deleted",
       "batchDeleteSuccess": "{{count}} items deleted",
-      "noContent": "No content"
+      "noContent": "No content",
+      "searchPlaceholder": "Search content by title..."
     },
     "config": {
       "title": "System Config",

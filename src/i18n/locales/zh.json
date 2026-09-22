@@ -123,8 +123,6 @@
       "fetching": "正在获取 {{count}} 个源...",
       "name": "名称",
       "url": "URL",
-      "parserId": "解析器标识",
-      "parserPlaceholder": "可选，如 qbitai",
       "fetchInterval": "抓取间隔（分钟）",
       "description": "描述",
       "enabled": "启用",
@@ -178,7 +176,8 @@
       "batchDeleteConfirm": "确定删除选中的 {{count}} 条内容？",
       "deleteSuccess": "内容已删除",
       "batchDeleteSuccess": "已删除 {{count}} 条内容",
-      "noContent": "暂无内容"
+      "noContent": "暂无内容",
+      "searchPlaceholder": "搜索内容标题..."
     },
     "config": {
       "title": "系统配置",

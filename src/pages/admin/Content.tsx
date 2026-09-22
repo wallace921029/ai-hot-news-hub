@@ -1,24 +1,80 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { debounce } from 'lodash-es'
 import { api } from '@/services/api'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Trash2, FileText, ExternalLink, Clock } from 'lucide-react'
+import {
+  Trash2,
+  FileText,
+  ExternalLink,
+  Clock,
+  Search,
+  Globe,
+  Rss,
+  MessageSquare,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Pagination } from '@/components/Pagination'
 import type { NewsItem } from '@/types'
 
+const sourceTypeConfig = {
+  api: { icon: Globe, labelKey: 'home.apiSource' },
+  rss: { icon: Rss, labelKey: 'home.rssSource' },
+  topic: { icon: MessageSquare, labelKey: 'home.topicSource' },
+}
+
 export function AdminContent() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [sourceType, setSourceType] = useState<'api' | 'rss' | 'topic'>('api')
+  const [sourceId, setSourceId] = useState<number | null>(null)
+  const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState('')
   const queryClient = useQueryClient()
   const { t } = useTranslation()
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['admin-content', page, pageSize],
-    queryFn: () => api.getAdminContent({ page, pageSize }),
+  const debouncedSetSearch = useMemo(
+    () =>
+      debounce((value: string) => {
+        setSearch(value)
+        setPage(1)
+      }, 300),
+    []
+  )
+
+  useEffect(() => () => debouncedSetSearch.cancel(), [debouncedSetSearch])
+
+  const { data: sources } = useQuery({
+    queryKey: ['admin-sources'],
+    queryFn: () => api.getSources(),
   })
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-content', page, pageSize, sourceType, sourceId, search],
+    queryFn: () =>
+      api.getAdminContent({
+        page,
+        pageSize,
+        sourceType,
+        sourceId: sourceId || undefined,
+        search: search || undefined,
+      }),
+  })
+
+  const filteredSources = (sources || []).filter(
+    (s: { sourceType?: string }) => s.sourceType === sourceType
+  )
+
+  const handleSourceTypeChange = (value: string) => {
+    setSourceType(value as 'api' | 'rss' | 'topic')
+    setSourceId(null)
+    setPage(1)
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.deleteContent(id),
@@ -81,6 +137,72 @@ export function AdminContent() {
             {t('admin.content.total', { count: data?.pagination?.total || 0 })}
           </p>
         </div>
+      </div>
+
+      {/* Filters（参考首页） */}
+      <div className="space-y-3">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={t('admin.content.searchPlaceholder')}
+            value={searchInput}
+            onChange={(e) => {
+              setSearchInput(e.target.value)
+              debouncedSetSearch(e.target.value)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                debouncedSetSearch.cancel()
+                setSearch(searchInput)
+                setPage(1)
+              }
+            }}
+            className="pl-10 h-10"
+          />
+        </div>
+
+        <Tabs value={sourceType} onValueChange={handleSourceTypeChange}>
+          <TabsList className="justify-start">
+            {(Object.keys(sourceTypeConfig) as Array<'api' | 'rss' | 'topic'>).map((type) => {
+              const cfg = sourceTypeConfig[type]
+              const Icon = cfg.icon
+              return (
+                <TabsTrigger key={type} value={type} className="flex items-center space-x-1.5">
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{t(cfg.labelKey)}</span>
+                </TabsTrigger>
+              )
+            })}
+          </TabsList>
+        </Tabs>
+
+        {filteredSources.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            <Badge
+              variant={sourceId === null ? 'default' : 'outline'}
+              className="cursor-pointer hover:bg-accent transition-colors"
+              onClick={() => {
+                setSourceId(null)
+                setPage(1)
+              }}
+            >
+              {t('home.allSources')}
+            </Badge>
+            {filteredSources.map((source: { id: number; name: string }) => (
+              <Badge
+                key={source.id}
+                variant={sourceId === source.id ? 'default' : 'outline'}
+                className="cursor-pointer hover:bg-accent transition-colors"
+                onClick={() => {
+                  setSourceId(sourceId === source.id ? null : source.id)
+                  setPage(1)
+                }}
+              >
+                {source.name}
+              </Badge>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="rounded-xl border bg-card text-card-foreground overflow-hidden">
