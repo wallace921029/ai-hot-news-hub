@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore, type Theme } from '@/stores/theme'
@@ -44,6 +45,8 @@ export function UserMenu() {
   const { theme, setTheme } = useThemeStore()
   const { i18n, t } = useTranslation()
   const navigate = useNavigate()
+  const [themeOpen, setThemeOpen] = useState(false)
+  const [languageOpen, setLanguageOpen] = useState(false)
 
   const displayName = user?.nickname?.trim() || user?.username || '?'
   const currentThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor
@@ -80,8 +83,20 @@ export function UserMenu() {
         <DropdownMenuSeparator />
 
         {/* Theme submenu */}
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="cursor-pointer justify-between">
+        <DropdownMenuSub
+          open={themeOpen}
+          onOpenChange={(v) => {
+            setThemeOpen(v)
+            if (v) setLanguageOpen(false)
+          }}
+        >
+          <DropdownMenuSubTrigger
+            className="cursor-pointer justify-between"
+            onClick={() => {
+              setThemeOpen(true)
+              setLanguageOpen(false)
+            }}
+          >
             <span className="flex items-center">
               <ThemeIcon className="w-4 h-4 mr-2" />
               {t('theme.toggle')}
@@ -108,8 +123,20 @@ export function UserMenu() {
         </DropdownMenuSub>
 
         {/* Language submenu */}
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="cursor-pointer justify-between">
+        <DropdownMenuSub
+          open={languageOpen}
+          onOpenChange={(v) => {
+            setLanguageOpen(v)
+            if (v) setThemeOpen(false)
+          }}
+        >
+          <DropdownMenuSubTrigger
+            className="cursor-pointer justify-between"
+            onClick={() => {
+              setLanguageOpen(true)
+              setThemeOpen(false)
+            }}
+          >
             <span className="flex items-center">
               <Languages className="w-4 h-4 mr-2" />
               {t('language.toggle')}
