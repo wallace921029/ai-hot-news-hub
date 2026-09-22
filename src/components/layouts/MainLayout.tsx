@@ -1,7 +1,5 @@
 import { Outlet, Link } from 'react-router'
 import { useUserStore } from '@/stores/user'
-import { ThemeToggle } from '@/components/ThemeToggle'
-import { LanguageSwitch } from '@/components/LanguageSwitch'
 import { UserMenu } from '@/components/UserMenu'
 import { Star, LayoutDashboard, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -48,9 +46,6 @@ export function MainLayout() {
           </nav>
 
           <div className="ml-auto flex items-center space-x-1.5">
-            <ThemeToggle />
-            <LanguageSwitch />
-            <div className="h-5 w-px bg-border mx-1" />
             <UserMenu />
           </div>
         </div>

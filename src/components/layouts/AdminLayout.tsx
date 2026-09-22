@@ -1,7 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router'
 import { Button } from '@/components/ui/button'
-import { ThemeToggle } from '@/components/ThemeToggle'
-import { LanguageSwitch } from '@/components/LanguageSwitch'
 import { UserMenu } from '@/components/UserMenu'
 import { cn } from '@/lib/utils'
 import {
@@ -48,9 +46,6 @@ export function AdminLayout() {
 
           {/* Right: Actions */}
           <div className="ml-auto flex items-center space-x-1.5">
-            <ThemeToggle />
-            <LanguageSwitch />
-            <div className="h-5 w-px bg-border mx-1" />
             <UserMenu />
           </div>
         </div>
