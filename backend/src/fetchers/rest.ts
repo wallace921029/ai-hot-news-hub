@@ -1,8 +1,5 @@
-import type { Fetcher, FetcherSource, RawNewsItem } from './types.js'
-
-interface PlatformParser {
-  parse(data: unknown, source: FetcherSource): RawNewsItem[]
-}
+import type { Fetcher, FetcherSource, PlatformParser, RawNewsItem } from './types.js'
+import { apiParsers } from './api-parsers.js'
 
 // 知乎热榜
 const zhihuParser: PlatformParser = {
@@ -357,7 +354,7 @@ const v2exParser: PlatformParser = {
   },
 }
 
-// 解析器映射
+// 解析器映射（既有平台 + api-parsers 扩展）
 const parsers: Record<string, PlatformParser> = {
   zhihu: zhihuParser,
   'zhihu-daily': zhihuDailyParser,
@@ -375,16 +372,26 @@ const parsers: Record<string, PlatformParser> = {
   sspai: sspaiParser,
   weread: wereadParser,
   v2ex: v2exParser,
+  ...apiParsers,
 }
 
 export class RestFetcher implements Fetcher {
   async fetch(source: FetcherSource): Promise<RawNewsItem[]> {
+    const parserName = source.parser || this.detectParser(source.url)
+    const parser = parserName ? parsers[parserName] : undefined
+
+    if (!parser) {
+      throw new Error(`未找到解析器: ${parserName || source.url}`)
+    }
+
+    const url = parser.prepareUrl ? parser.prepareUrl(source.url) : source.url
+
     const headers: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       ...source.headers,
     }
 
-    const response = await fetch(source.url, {
+    const response = await fetch(url, {
       method: source.method || 'GET',
       headers,
       body: source.method === 'POST' ? source.body : undefined,
@@ -394,14 +401,15 @@ export class RestFetcher implements Fetcher {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
-    const data = await response.json()
-    const parserName = source.parser || this.detectParser(source.url)
-
-    if (!parserName || !parsers[parserName]) {
-      throw new Error(`未找到解析器: ${parserName || source.url}`)
+    let data: unknown
+    if (parser.responseType === 'text') {
+      const buffer = await response.arrayBuffer()
+      data = new TextDecoder(parser.charset || 'utf-8').decode(buffer)
+    } else {
+      data = await response.json()
     }
 
-    return parsers[parserName].parse(data, source)
+    return await parser.parse(data, source)
   }
 
   private detectParser(url: string): string | null {
