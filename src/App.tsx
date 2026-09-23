@@ -8,6 +8,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { HomePage } from '@/pages/Home'
 import { CommunityPage } from '@/pages/Community'
 import { PostDetailPage } from '@/pages/PostDetail'
+import { MomentsPage } from '@/pages/Moments'
 
 // 富文本编辑器依赖较重（TipTap + 表情库），懒加载避免拖慢首屏
 const PostEditorPage = lazy(() =>
@@ -69,7 +70,9 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<HomePage />} />
+            <Route index element={<MomentsPage />} />
+            <Route path="news" element={<HomePage />} />
+            <Route path="moments" element={<Navigate to="/" replace />} />
             <Route path="community" element={<CommunityPage />} />
             <Route
               path="community/new"
@@ -88,6 +91,7 @@ export default function App() {
                 </Suspense>
               }
             />
+            <Route path="moments" element={<MomentsPage />} />
             <Route path="favorites" element={<FavoritesPage />} />
             <Route path="news/:id" element={<NewsDetailPage />} />
             <Route path="profile" element={<ProfilePage />} />

@@ -9,6 +9,7 @@ import { authRoutes } from './routes/auth.js'
 import { newsRoutes } from './routes/news.js'
 import { favoriteRoutes } from './routes/favorites.js'
 import { communityRoutes } from './routes/community.js'
+import { momentRoutes } from './routes/moments.js'
 import { adminRoutes } from './routes/admin/index.js'
 import { startScheduler, fetchAllSources } from './scheduler/index.js'
 
@@ -29,6 +30,7 @@ await app.register(authRoutes, { prefix: '/api/auth' })
 await app.register(newsRoutes, { prefix: '/api/news' })
 await app.register(favoriteRoutes, { prefix: '/api/favorites' })
 await app.register(communityRoutes, { prefix: '/api/community' })
+await app.register(momentRoutes, { prefix: '/api/moments' })
 await app.register(adminRoutes, { prefix: '/api/admin' })
 
 // 健康检查

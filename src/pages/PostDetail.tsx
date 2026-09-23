@@ -264,7 +264,7 @@ export function PostDetailPage() {
   }
 
   return (
-    <motion.div className="max-w-3xl mx-auto space-y-4" {...pageTransition}>
+    <motion.div className="max-w-4xl mx-auto space-y-4" {...pageTransition}>
       <Button variant="ghost" size="sm" asChild className="text-muted-foreground">
         <Link to="/community">
           <ArrowLeft className="w-4 h-4 mr-1" />

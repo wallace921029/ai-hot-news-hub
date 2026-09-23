@@ -121,7 +121,7 @@ class ApiService {
     return this.request<any>(`/favorites/${newsId}`, { method: 'DELETE' })
   }
 
-  // 社区 - 众声喧哗
+  // 社区 - 瓜友议事厅
   async getCommunityPosts(params?: {
     page?: number
     pageSize?: number
@@ -186,6 +186,56 @@ class ApiService {
   async toggleCommentLike(id: number) {
     return this.request<{ success: boolean; liked: boolean; likeCount: number }>(
       `/community/comments/${id}/like`,
+      { method: 'POST', body: {} }
+    )
+  }
+
+  // 瓜田电波 - 短动态
+  async getMoments(params?: { page?: number; pageSize?: number; mine?: boolean }) {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', String(params.page))
+    if (params?.pageSize) searchParams.set('pageSize', String(params.pageSize))
+    if (params?.mine) searchParams.set('mine', '1')
+
+    return this.request<any>(`/moments?${searchParams.toString()}`)
+  }
+
+  async createMoment(content: string) {
+    return this.request<{ success: boolean; moment: any }>('/moments', {
+      method: 'POST',
+      body: { content },
+    })
+  }
+
+  async deleteMoment(id: number) {
+    return this.request<{ success: boolean }>(`/moments/${id}`, { method: 'DELETE' })
+  }
+
+  async toggleMomentLike(id: number) {
+    return this.request<{ success: boolean; liked: boolean; likeCount: number }>(
+      `/moments/${id}/like`,
+      { method: 'POST', body: {} }
+    )
+  }
+
+  async getMomentComments(momentId: number, page = 1, pageSize = 20) {
+    return this.request<any>(`/moments/${momentId}/comments?page=${page}&pageSize=${pageSize}`)
+  }
+
+  async createMomentComment(momentId: number, content: string) {
+    return this.request<{ success: boolean; comment: any }>(`/moments/${momentId}/comments`, {
+      method: 'POST',
+      body: { content },
+    })
+  }
+
+  async deleteMomentComment(id: number) {
+    return this.request<{ success: boolean }>(`/moments/comments/${id}`, { method: 'DELETE' })
+  }
+
+  async toggleMomentCommentLike(id: number) {
+    return this.request<{ success: boolean; liked: boolean; likeCount: number }>(
+      `/moments/comments/${id}/like`,
       { method: 'POST', body: {} }
     )
   }

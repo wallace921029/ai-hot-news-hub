@@ -129,6 +129,28 @@ export interface CommunityComment {
   replies?: CommunityComment[]
 }
 
+export interface CommunityMoment {
+  id: number
+  userId: number
+  content: string
+  likeCount: number
+  commentCount: number
+  createdAt: string
+  likedByMe?: boolean
+  author: CommunityAuthor | null
+}
+
+export interface MomentComment {
+  id: number
+  momentId: number
+  userId: number
+  content: string
+  likeCount: number
+  createdAt: string
+  likedByMe?: boolean
+  author: CommunityAuthor | null
+}
+
 export interface CommunityListResponse<T> {
   items: T[]
   pagination: {

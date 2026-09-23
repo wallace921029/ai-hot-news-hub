@@ -123,14 +123,46 @@ export const communityComments = sqliteTable('community_comments', {
     .default(sql`(unixepoch())`),
 })
 
-// 社区点赞表（帖子 / 评论通用，用户防重）
+// 社区点赞表（帖子 / 评论 / 动态 / 动态评论通用，用户防重）
 export const communityLikes = sqliteTable('community_likes', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id')
     .notNull()
     .references(() => users.id),
-  targetType: text('target_type', { enum: ['post', 'comment'] }).notNull(),
+  targetType: text('target_type', {
+    enum: ['post', 'comment', 'moment', 'moment_comment'],
+  }).notNull(),
   targetId: integer('target_id').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})
+
+// 瓜田电波动态表（短动态，时间流）
+export const communityMoments = sqliteTable('community_moments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  content: text('content').notNull(),
+  likeCount: integer('like_count').notNull().default(0),
+  commentCount: integer('comment_count').notNull().default(0),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})
+
+// 动态评论表（扁平，不嵌套）
+export const momentComments = sqliteTable('moment_comments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  momentId: integer('moment_id')
+    .notNull()
+    .references(() => communityMoments.id),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  content: text('content').notNull(),
+  likeCount: integer('like_count').notNull().default(0),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),
