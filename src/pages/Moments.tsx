@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/services/api'
+import { api, assetUrl } from '@/services/api'
 import { useUserStore } from '@/stores/user'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -16,14 +16,31 @@ import {
 } from '@/components/ui/dialog'
 import { UserAvatar } from '@/components/UserAvatar'
 import { EmojiPickerButton } from '@/components/EmojiPickerButton'
+import { ImageGrid } from '@/components/ImageGrid'
+import {
+  compressImage,
+  validateImageFile,
+  revokeCompressed,
+  type CompressedImage,
+} from '@/lib/image'
 import { motion } from 'framer-motion'
 import { pageTransition, staggerContainer, staggerItem } from '@/lib/animations'
-import { Heart, MessageSquare, Trash2, Send, Radio, ChevronDown, Loader2 } from 'lucide-react'
+import {
+  Heart,
+  MessageSquare,
+  Trash2,
+  Send,
+  Radio,
+  ChevronDown,
+  Loader2,
+  ImagePlus,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import type { CommunityMoment, MomentComment } from '@/types'
 
 const MOMENT_LIMIT = 280
+const MAX_IMAGES = 9
 
 function useFormatTime() {
   const { t } = useTranslation()
@@ -286,6 +303,16 @@ function MomentCard({
               <p className="text-[15px] text-foreground/90 mt-1.5 whitespace-pre-wrap leading-relaxed">
                 {moment.content}
               </p>
+              {moment.images && moment.images.length > 0 && (
+                <ImageGrid
+                  images={moment.images.map((img) => ({
+                    thumbUrl: assetUrl(img.thumbUrl),
+                    originalUrl: assetUrl(img.originalUrl),
+                    width: img.width,
+                    height: img.height,
+                  }))}
+                />
+              )}
               <div className="flex items-center gap-1 mt-2">
                 <Button
                   variant="ghost"
@@ -330,7 +357,10 @@ export function MomentsPage() {
   const [input, setInput] = useState('')
   const [publishing, setPublishing] = useState(false)
   const [pendingDeleteMomentId, setPendingDeleteMomentId] = useState<number | null>(null)
+  const [draftImages, setDraftImages] = useState<CompressedImage[]>([])
+  const [pickingImages, setPickingImages] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
   const { t } = useTranslation()
@@ -365,11 +395,27 @@ export function MomentsPage() {
   }, [fetchNextPage, hasNextPage, isFetchingNextPage, items.length])
 
   const createMoment = useMutation({
-    mutationFn: () => api.createMoment(input.trim()),
+    mutationFn: async () => {
+      let images:
+        | Array<{ originalUrl: string; thumbUrl: string; width?: number; height?: number }>
+        | undefined
+      if (draftImages.length > 0) {
+        const res = await api.uploadImages(draftImages.map((d) => d.original))
+        images = res.images.map((img) => ({
+          originalUrl: img.originalUrl,
+          thumbUrl: img.thumbUrl,
+          width: img.width,
+          height: img.height,
+        }))
+      }
+      return api.createMoment(input.trim(), images)
+    },
     onMutate: () => setPublishing(true),
     onSuccess: () => {
       toast.success(t('moments.publishSuccess'))
       setInput('')
+      draftImages.forEach(revokeCompressed)
+      setDraftImages([])
       setPublishing(false)
       queryClient.invalidateQueries({ queryKey: ['moments'] })
     },
@@ -395,9 +441,49 @@ export function MomentsPage() {
     })
   }
 
-  const canPublish = input.trim().length > 0 && !publishing
+  const canPublish = (input.trim().length > 0 || draftImages.length > 0) && !publishing
   const submit = () => {
     if (canPublish) createMoment.mutate()
+  }
+
+  const handlePickImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    e.target.value = ''
+    if (!files.length) return
+
+    const room = MAX_IMAGES - draftImages.length
+    if (files.length > room) {
+      toast.error(t('moments.imageTooMany'))
+      files.length = room
+    }
+
+    setPickingImages(true)
+    try {
+      const accepted: CompressedImage[] = []
+      for (const file of files) {
+        const err = validateImageFile(file)
+        if (err) {
+          toast.error(err)
+          continue
+        }
+        try {
+          accepted.push(await compressImage(file))
+        } catch {
+          toast.error(t('moments.imageInvalid'))
+        }
+      }
+      if (accepted.length) setDraftImages((prev) => [...prev, ...accepted])
+    } finally {
+      setPickingImages(false)
+    }
+  }
+
+  const removeDraftImage = (index: number) => {
+    setDraftImages((prev) => {
+      const target = prev[index]
+      if (target) revokeCompressed(target)
+      return prev.filter((_, i) => i !== index)
+    })
   }
 
   const deleteMoment = useMutation({
@@ -434,36 +520,70 @@ export function MomentsPage() {
       <Card className="shadow-sm">
         <CardContent className="p-4">
           <div className="flex gap-3">
-            <div className="flex-1 relative">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                maxLength={MOMENT_LIMIT}
-                rows={3}
-                placeholder={t('moments.placeholder')}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                    e.preventDefault()
-                    submit()
-                  }
-                }}
-                className="flex min-h-[84px] w-full rounded-xl border border-input bg-muted/40 px-3.5 py-2.5 pb-12 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:bg-background transition-colors disabled:cursor-not-allowed disabled:opacity-50 resize-y"
-              />
-              <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1">
-                <span className="text-[11px] tabular-nums text-muted-foreground/70 mr-1">
-                  {input.length} / {MOMENT_LIMIT}
-                </span>
-                <EmojiPickerButton onSelect={insertEmoji} />
-                <Button size="sm" disabled={!canPublish} onClick={submit} className="h-8">
-                  {publishing ? (
-                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4 mr-1.5" />
-                  )}
-                  {t('moments.publish')}
-                </Button>
+            <div className="flex-1">
+              <div className="relative">
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  maxLength={MOMENT_LIMIT}
+                  rows={3}
+                  placeholder={t('moments.placeholder')}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                      e.preventDefault()
+                      submit()
+                    }
+                  }}
+                  className="flex min-h-[84px] w-full rounded-xl border border-input bg-muted/40 px-3.5 py-2.5 pb-12 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:bg-background transition-colors disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+                />
+                <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1">
+                  <span className="text-[11px] tabular-nums text-muted-foreground/70 mr-1">
+                    {input.length} / {MOMENT_LIMIT}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 rounded-full text-muted-foreground"
+                    title={t('moments.addImage')}
+                    disabled={pickingImages || draftImages.length >= MAX_IMAGES}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {pickingImages ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <ImagePlus className="w-3.5 h-3.5" />
+                    )}
+                  </Button>
+                  <EmojiPickerButton onSelect={insertEmoji} />
+                  <Button size="sm" disabled={!canPublish} onClick={submit} className="h-8">
+                    {publishing ? (
+                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4 mr-1.5" />
+                    )}
+                    {t('moments.publish')}
+                  </Button>
+                </div>
               </div>
+              {draftImages.length > 0 && (
+                <ImageGrid
+                  editable
+                  onRemove={removeDraftImage}
+                  images={draftImages.map((d) => ({
+                    thumbUrl: d.thumbUrl,
+                    originalUrl: d.originalPreviewUrl,
+                  }))}
+                />
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                multiple
+                className="hidden"
+                onChange={handlePickImages}
+              />
             </div>
           </div>
         </CardContent>

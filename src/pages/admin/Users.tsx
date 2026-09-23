@@ -2,6 +2,16 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/services/api'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
@@ -36,6 +46,7 @@ export function AdminUsers() {
     role: 'user' as 'admin' | 'user',
   })
   const [newPassword, setNewPassword] = useState('')
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-users'],
@@ -312,11 +323,7 @@ export function AdminUsers() {
                           size="icon"
                           className="h-8 w-8 text-muted-foreground/30 hover:text-destructive"
                           title={t('common.delete')}
-                          onClick={() => {
-                            if (confirm(t('admin.users.deleteConfirm'))) {
-                              deleteMutation.mutate(user.id)
-                            }
-                          }}
+                          onClick={() => setPendingDeleteId(user.id)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -329,6 +336,31 @@ export function AdminUsers() {
           </table>
         )}
       </div>
+      <AlertDialog
+        open={pendingDeleteId !== null}
+        onOpenChange={(o) => {
+          if (!o) setPendingDeleteId(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('admin.users.deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('admin.users.deleteConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (pendingDeleteId !== null) deleteMutation.mutate(pendingDeleteId)
+                setPendingDeleteId(null)
+              }}
+            >
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

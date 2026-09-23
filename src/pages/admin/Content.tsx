@@ -3,6 +3,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { debounce } from 'lodash-es'
 import { api } from '@/services/api'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -35,6 +45,7 @@ export function AdminContent() {
   const [sourceId, setSourceId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
   const queryClient = useQueryClient()
   const { t } = useTranslation()
 
@@ -276,11 +287,7 @@ export function AdminContent() {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 text-muted-foreground/30 hover:text-destructive shrink-0"
-                      onClick={() => {
-                        if (confirm(t('admin.content.deleteConfirm'))) {
-                          deleteMutation.mutate(item.id)
-                        }
-                      }}
+                      onClick={() => setPendingDeleteId(item.id)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -302,6 +309,31 @@ export function AdminContent() {
           onPageSizeChange={setPageSize}
         />
       )}
+      <AlertDialog
+        open={pendingDeleteId !== null}
+        onOpenChange={(o) => {
+          if (!o) setPendingDeleteId(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('admin.content.deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('admin.content.deleteConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (pendingDeleteId !== null) deleteMutation.mutate(pendingDeleteId)
+                setPendingDeleteId(null)
+              }}
+            >
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -4,10 +4,23 @@ import { db } from '../db/index.js'
 import { communityMoments, momentComments, communityLikes, users } from '../db/schema.js'
 import { eq, and, desc, asc, sql } from 'drizzle-orm'
 import { authMiddleware } from '../middleware/auth.js'
+import { cleanupUploadsByOriginalUrls } from '../utils/uploads.js'
 
-const createMomentSchema = z.object({
-  content: z.string().trim().min(1, '内容不能为空').max(280, '动态最多 280 字'),
+const imageRefSchema = z.object({
+  originalUrl: z.string().min(1),
+  thumbUrl: z.string().min(1),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
 })
+
+const createMomentSchema = z
+  .object({
+    content: z.string().trim().max(280, '动态最多 280 字'),
+    images: z.array(imageRefSchema).max(9, '最多 9 张图片').optional(),
+  })
+  .refine((d) => d.content.length > 0 || (d.images && d.images.length > 0), {
+    message: '内容或图片至少一项',
+  })
 
 const createMomentCommentSchema = z.object({
   content: z.string().trim().min(1, '评论不能为空').max(500, '评论最多 500 字'),
@@ -54,6 +67,7 @@ export async function momentRoutes(app: FastifyInstance) {
         id: communityMoments.id,
         userId: communityMoments.userId,
         content: communityMoments.content,
+        images: communityMoments.images,
         likeCount: communityMoments.likeCount,
         commentCount: communityMoments.commentCount,
         createdAt: communityMoments.createdAt,
@@ -90,6 +104,7 @@ export async function momentRoutes(app: FastifyInstance) {
         id: r.id,
         userId: r.userId,
         content: r.content,
+        images: r.images ? (JSON.parse(r.images as string) as unknown[]) : [],
         likeCount: r.likeCount,
         commentCount: r.commentCount,
         createdAt: r.createdAt,
@@ -121,10 +136,17 @@ export async function momentRoutes(app: FastifyInstance) {
 
     const [moment] = await db
       .insert(communityMoments)
-      .values({ userId: request.user.userId, content: parsed.data.content })
+      .values({
+        userId: request.user.userId,
+        content: parsed.data.content,
+        images: parsed.data.images ? JSON.stringify(parsed.data.images) : null,
+      })
       .returning()
 
-    return { success: true, moment }
+    return {
+      success: true,
+      moment: { ...moment, images: moment.images ? JSON.parse(moment.images as string) : [] },
+    }
   })
 
   // 删动态（本人或管理员，级联清评论+点赞）
@@ -164,6 +186,17 @@ export async function momentRoutes(app: FastifyInstance) {
       .delete(communityLikes)
       .where(and(eq(communityLikes.targetType, 'moment'), eq(communityLikes.targetId, momentId)))
     await db.delete(communityMoments).where(eq(communityMoments.id, momentId))
+
+    // 级联清理图片文件与记录
+    if (moment.images) {
+      try {
+        const parsed = JSON.parse(moment.images as string) as Array<{ originalUrl?: string }>
+        const urls = parsed.map((i) => i.originalUrl || '').filter(Boolean)
+        await cleanupUploadsByOriginalUrls(urls)
+      } catch {
+        // images 字段损坏时忽略
+      }
+    }
 
     return { success: true }
   })

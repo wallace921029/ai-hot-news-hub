@@ -33,13 +33,17 @@ export function EmojiPickerButton({ onSelect }: EmojiPickerButtonProps) {
     const btn = btnRef.current
     if (!btn) return false
     const rect = btn.getBoundingClientRect()
-    if (rect.top < 0 || rect.top > window.innerHeight) return false
+    // 仅当按钮完全离开视口时才视为不可定位；部分露出（如顶部被裁）仍可打开
+    if (rect.bottom <= 0 || rect.top >= window.innerHeight) return false
     const w = 340
     const h = 380
     const gap = 8
     const left = Math.max(8, Math.min(rect.right - w, window.innerWidth - w - 8))
     const above = rect.top - h - gap
-    setPos({ top: above < 8 ? rect.bottom + gap : above, left })
+    // 优先按钮上方；上方放不下改下方；最终夹紧到视口内，避免面板下半截出屏
+    const raw = above >= 8 ? above : rect.bottom + gap
+    const top = Math.min(Math.max(raw, 8), Math.max(8, window.innerHeight - h - 8))
+    setPos({ top, left })
     return true
   }
 

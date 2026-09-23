@@ -4,6 +4,7 @@ import { db } from '../db/index.js'
 import { communityPosts, communityComments, communityLikes, users } from '../db/schema.js'
 import { eq, and, desc, asc, sql, like, or, isNull, inArray } from 'drizzle-orm'
 import { authMiddleware } from '../middleware/auth.js'
+import { cleanupUploadsByOriginalUrls, extractOriginalUrlsFromHtml } from '../utils/uploads.js'
 
 const createPostSchema = z.object({
   title: z.string().trim().min(1, '标题不能为空').max(100, '标题最多 100 字'),
@@ -229,6 +230,14 @@ export async function communityRoutes(app: FastifyInstance) {
       .where(eq(communityPosts.id, postId))
       .returning()
 
+    // 编辑时清理正文中被移除的图片
+    if (parsed.data.content !== undefined) {
+      const before = new Set(extractOriginalUrlsFromHtml(post.content || ''))
+      const after = new Set(extractOriginalUrlsFromHtml(updated.content || ''))
+      const removed = [...before].filter((u) => !after.has(u))
+      if (removed.length > 0) await cleanupUploadsByOriginalUrls(removed)
+    }
+
     return { success: true, post: updated }
   })
 
@@ -270,6 +279,9 @@ export async function communityRoutes(app: FastifyInstance) {
       .delete(communityLikes)
       .where(and(eq(communityLikes.targetType, 'post'), eq(communityLikes.targetId, postId)))
     await db.delete(communityPosts).where(eq(communityPosts.id, postId))
+
+    // 级联清理帖子正文中的上传图片
+    await cleanupUploadsByOriginalUrls(extractOriginalUrlsFromHtml(post.content || ''))
 
     return { success: true }
   })

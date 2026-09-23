@@ -145,6 +145,7 @@ export const communityMoments = sqliteTable('community_moments', {
     .notNull()
     .references(() => users.id),
   content: text('content').notNull(),
+  images: text('images'), // JSON.stringify(ImageRef[])
   likeCount: integer('like_count').notNull().default(0),
   commentCount: integer('comment_count').notNull().default(0),
   createdAt: integer('created_at', { mode: 'timestamp' })
@@ -163,6 +164,23 @@ export const momentComments = sqliteTable('moment_comments', {
     .references(() => users.id),
   content: text('content').notNull(),
   likeCount: integer('like_count').notNull().default(0),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})
+
+// 图片资源表（上传即入库，便于清理与鉴权）
+export const communityImages = sqliteTable('community_images', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  originalUrl: text('original_url').notNull(),
+  thumbUrl: text('thumb_url').notNull(),
+  width: integer('width'),
+  height: integer('height'),
+  bytesOriginal: integer('bytes_original'),
+  bytesThumb: integer('bytes_thumb'),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),

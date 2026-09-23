@@ -129,10 +129,18 @@ export interface CommunityComment {
   replies?: CommunityComment[]
 }
 
+export interface ImageRef {
+  originalUrl: string
+  thumbUrl: string
+  width?: number
+  height?: number
+}
+
 export interface CommunityMoment {
   id: number
   userId: number
   content: string
+  images?: ImageRef[]
   likeCount: number
   commentCount: number
   createdAt: string

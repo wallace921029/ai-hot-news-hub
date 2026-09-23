@@ -6,6 +6,9 @@ import '@blocknote/core/fonts/inter.css'
 import '@blocknote/shadcn/style.css'
 import { useThemeStore } from '@/stores/theme'
 import { useTranslation } from 'react-i18next'
+import { api, assetUrl } from '@/services/api'
+import { validateImageFile } from '@/lib/image'
+import { toast } from 'sonner'
 
 interface RichEditorProps {
   /** 初始 HTML 内容 */
@@ -37,7 +40,25 @@ export function RichEditor({ value, onChange, placeholder }: RichEditorProps) {
     }
   }, [i18n.language, placeholder])
 
-  const editor = useCreateBlockNote({ dictionary })
+  const editor = useCreateBlockNote({
+    dictionary,
+    uploadFile: async (file: File) => {
+      const err = validateImageFile(file)
+      if (err) {
+        toast.error(err)
+        throw new Error(err)
+      }
+      try {
+        const { images } = await api.uploadImages([file])
+        // 存缩略图地址，渲染时反推原图并包 <a> 新标签打开
+        return assetUrl(images[0].thumbUrl)
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : '图片上传失败'
+        toast.error(msg)
+        throw e
+      }
+    },
+  })
 
   // 挂载时载入初始 HTML（编辑模式回填）
   useEffect(() => {

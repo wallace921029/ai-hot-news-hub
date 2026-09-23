@@ -1,4 +1,11 @@
 const API_BASE = 'http://localhost:8762/api'
+const API_ORIGIN = 'http://localhost:8762'
+
+/** 相对上传路径 → 绝对 URL */
+export function assetUrl(path: string): string {
+  if (!path) return path
+  return path.startsWith('http') ? path : `${API_ORIGIN}${path}`
+}
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
@@ -200,11 +207,42 @@ class ApiService {
     return this.request<any>(`/moments?${searchParams.toString()}`)
   }
 
-  async createMoment(content: string) {
+  async createMoment(
+    content: string,
+    images?: Array<{ originalUrl: string; thumbUrl: string; width?: number; height?: number }>
+  ) {
     return this.request<{ success: boolean; moment: any }>('/moments', {
       method: 'POST',
-      body: { content },
+      body: { content, images },
     })
+  }
+
+  async uploadImages(files: File[]) {
+    const formData = new FormData()
+    for (const file of files) formData.append('file', file)
+
+    const headers: Record<string, string> = {}
+    if (this.token) headers['Authorization'] = `Bearer ${this.token}`
+
+    const response = await fetch(`${API_BASE}/uploads/images`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: '上传失败' }))
+      throw new Error(error.error || `HTTP ${response.status}`)
+    }
+    return response.json() as Promise<{
+      images: Array<{
+        originalUrl: string
+        thumbUrl: string
+        width: number
+        height: number
+        bytesOriginal: number
+        bytesThumb: number
+      }>
+    }>
   }
 
   async deleteMoment(id: number) {

@@ -10,6 +10,7 @@ import { newsRoutes } from './routes/news.js'
 import { favoriteRoutes } from './routes/favorites.js'
 import { communityRoutes } from './routes/community.js'
 import { momentRoutes } from './routes/moments.js'
+import { uploadRoutes } from './routes/uploads.js'
 import { adminRoutes } from './routes/admin/index.js'
 import { startScheduler, fetchAllSources } from './scheduler/index.js'
 
@@ -25,10 +26,25 @@ await app.register(cors, {
   allowedHeaders: ['Content-Type', 'Authorization'],
 })
 
+// 静态资源：上传图片
+import fastifyStatic from '@fastify/static'
+import fastifyMultipart from '@fastify/multipart'
+import { UPLOAD_ROOT } from './utils/uploads.js'
+
+await app.register(fastifyMultipart, {
+  limits: { fileSize: 10 * 1024 * 1024, files: 10 },
+})
+await app.register(fastifyStatic, {
+  root: UPLOAD_ROOT,
+  prefix: '/uploads/',
+  decorateReply: false,
+})
+
 // 注册路由
 await app.register(authRoutes, { prefix: '/api/auth' })
 await app.register(newsRoutes, { prefix: '/api/news' })
 await app.register(favoriteRoutes, { prefix: '/api/favorites' })
+await app.register(uploadRoutes, { prefix: '/api/uploads' })
 await app.register(communityRoutes, { prefix: '/api/community' })
 await app.register(momentRoutes, { prefix: '/api/moments' })
 await app.register(adminRoutes, { prefix: '/api/admin' })

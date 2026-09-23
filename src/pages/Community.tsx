@@ -6,6 +6,16 @@ import { api } from '@/services/api'
 import { useUserStore } from '@/stores/user'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -29,6 +39,7 @@ export function CommunityPage() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'all' | 'mine'>('all')
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { t } = useTranslation()
@@ -74,8 +85,13 @@ export function CommunityPage() {
   })
 
   const handleDelete = (post: CommunityPost) => {
-    if (window.confirm(t('community.deleteConfirm'))) {
-      deletePost.mutate(post.id)
+    setPendingDeleteId(post.id)
+  }
+
+  const confirmDelete = () => {
+    if (pendingDeleteId !== null) {
+      deletePost.mutate(pendingDeleteId)
+      setPendingDeleteId(null)
     }
   }
 
@@ -259,6 +275,25 @@ export function CommunityPage() {
           }}
         />
       )}
+      <AlertDialog
+        open={pendingDeleteId !== null}
+        onOpenChange={(o) => {
+          if (!o) setPendingDeleteId(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('community.deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('community.deleteConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmDelete}>
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   )
 }

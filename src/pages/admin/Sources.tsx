@@ -2,6 +2,16 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/services/api'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -60,6 +70,7 @@ export function AdminSources() {
   const [form, setForm] = useState<RssForm>(defaultRssForm)
   const [fetchingId, setFetchingId] = useState<number | null>(null)
   const [fetchingAll, setFetchingAll] = useState(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
 
   const { data: sources, isLoading } = useQuery({
     queryKey: ['admin-sources'],
@@ -419,11 +430,7 @@ export function AdminSources() {
                         variant="ghost"
                         size="sm"
                         className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        onClick={() => {
-                          if (confirm(t('admin.sources.deleteConfirm'))) {
-                            deleteMutation.mutate(source.id)
-                          }
-                        }}
+                        onClick={() => setPendingDeleteId(source.id)}
                         title={t('common.delete')}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -514,6 +521,31 @@ export function AdminSources() {
           </div>
         </TabsContent>
       </Tabs>
+      <AlertDialog
+        open={pendingDeleteId !== null}
+        onOpenChange={(o) => {
+          if (!o) setPendingDeleteId(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('admin.sources.deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('admin.sources.deleteConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (pendingDeleteId !== null) deleteMutation.mutate(pendingDeleteId)
+                setPendingDeleteId(null)
+              }}
+            >
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

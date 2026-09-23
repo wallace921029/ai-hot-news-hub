@@ -5,6 +5,16 @@ import { api } from '@/services/api'
 import { useUserStore } from '@/stores/user'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import { RichEditor } from '@/components/RichEditor'
@@ -30,6 +40,7 @@ export function PostEditorPage() {
   const [html, setHtml] = useState('')
   const [plainText, setPlainText] = useState('')
   const [initialized, setInitialized] = useState(!isEdit)
+  const [pendingLeave, setPendingLeave] = useState(false)
 
   const { data: post, isLoading } = useQuery({
     queryKey: ['community-post', postId],
@@ -101,7 +112,9 @@ export function PostEditorPage() {
 
   const pending = createPost.isPending || updatePost.isPending
   const textLen = postTextLength(html)
-  const canSubmit = !pending && title.trim().length > 0 && textLen > 0 && html.length <= 20000
+  const hasImage = /<img\s/i.test(html)
+  const canSubmit =
+    !pending && title.trim().length > 0 && (textLen > 0 || hasImage) && html.length <= 20000
 
   const handleSubmit = () => {
     if (!canSubmit) return
@@ -110,7 +123,15 @@ export function PostEditorPage() {
   }
 
   const handleBack = () => {
-    if (dirty && !window.confirm(t('community.unsavedLeave'))) return
+    if (dirty) {
+      setPendingLeave(true)
+      return
+    }
+    navigate(isEdit ? `/community/${postId}` : '/community')
+  }
+
+  const confirmLeave = () => {
+    setPendingLeave(false)
     navigate(isEdit ? `/community/${postId}` : '/community')
   }
 
@@ -235,6 +256,18 @@ export function PostEditorPage() {
           )}
         </CardContent>
       </Card>
+      <AlertDialog open={pendingLeave} onOpenChange={setPendingLeave}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('community.unsavedLeaveTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('community.unsavedLeave')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmLeave}>{t('common.confirm')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   )
 }

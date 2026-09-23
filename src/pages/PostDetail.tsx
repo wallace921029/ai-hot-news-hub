@@ -6,6 +6,16 @@ import { api } from '@/services/api'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -48,7 +58,7 @@ import type { EmojiData } from 'emoji-picker-react/dist/types/exposedTypes'
 const emojiZh = emojiZhData as unknown as EmojiData
 import { toast } from 'sonner'
 import DOMPurify from 'dompurify'
-import { cleanPostHtml, postExcerpt } from '@/lib/post'
+import { cleanPostHtml, linkifyUploadImages, postExcerpt } from '@/lib/post'
 import { useTranslation } from 'react-i18next'
 import type { CommunityComment } from '@/types'
 
@@ -63,6 +73,7 @@ export function PostDetailPage() {
   const [emojiPos, setEmojiPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
   const [sendState, setSendState] = useState<'idle' | 'sending' | 'sent'>('idle')
   const [pendingDeleteCommentId, setPendingDeleteCommentId] = useState<number | null>(null)
+  const [pendingDeletePost, setPendingDeletePost] = useState(false)
   const [replyTarget, setReplyTarget] = useState<{ parentId: number; username: string } | null>(
     null
   )
@@ -161,9 +172,12 @@ export function PostDetailPage() {
   }
 
   const handleDeletePost = () => {
-    if (window.confirm(t('community.deleteConfirm'))) {
-      deletePost.mutate()
-    }
+    setPendingDeletePost(true)
+  }
+
+  const confirmDeletePost = () => {
+    deletePost.mutate()
+    setPendingDeletePost(false)
   }
 
   const confirmDeleteComment = () => {
@@ -331,9 +345,12 @@ export function PostDetailPage() {
                 <div
                   className="article-content mt-4"
                   dangerouslySetInnerHTML={{
-                    __html: DOMPurify.sanitize(cleanPostHtml(post.content || ''), {
-                      ADD_ATTR: ['target'],
-                    }),
+                    __html: DOMPurify.sanitize(
+                      linkifyUploadImages(cleanPostHtml(post.content || '')),
+                      {
+                        ADD_ATTR: ['target'],
+                      }
+                    ),
                   }}
                 />
               ) : (
@@ -754,6 +771,20 @@ export function PostDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={pendingDeletePost} onOpenChange={setPendingDeletePost}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('community.deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('community.deleteConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmDeletePost}>
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   )
 }
