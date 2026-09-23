@@ -1,75 +1,41 @@
 # AGENTS.md
 
-## Project overview
+## Layout
 
-AI Hot News Hub — aggregates trending content from Chinese and international platforms (Zhihu, Weibo, Bilibili, GitHub, etc.). Frontend is a Vite + React 19 + TypeScript 6 app. Backend is Node.js + Fastify + SQLite.
+- Two npm packages, two lockfiles: root = Vite + React frontend; `backend/` = Fastify + SQLite API (own `node_modules`). Install both: `npm install` at root, then `cd backend && npm install`.
+- Frontend entry: `src/main.tsx` → `src/App.tsx`. Backend entry: `backend/src/index.ts` (routes registered there with `/api/*` prefixes).
+- New data-source fetchers go in `backend/src/fetchers/` (+ `backend/src/parsers/`). Consult `docs/public-api-doc.md` for already-tested source APIs before adding one.
 
 ## Commands
 
-### Frontend (root)
+Root (frontend):
 
-| Task                       | Command                                       |
-| -------------------------- | --------------------------------------------- |
-| Dev server                 | `npm run dev`                                 |
-| Build (typecheck + bundle) | `npm run build` (runs `tsc -b && vite build`) |
-| Lint                       | `npm run lint` (runs `oxlint`)                |
-| Preview production build   | `npm run preview`                             |
+- `npm run dev` — Vite on `:8763`
+- `npm run build` — `tsc -b && vite build` (typecheck + bundle; no separate typecheck script)
+- `npm run lint` — `oxlint` (NOT ESLint)
+- `npm run format` — `prettier --write .`
 
-### Backend (`cd backend`)
+`backend/`:
 
-| Task              | Command           |
-| ----------------- | ----------------- |
-| Dev server        | `npm run dev`     |
-| Build             | `npm run build`   |
-| Start             | `npm run start`   |
-| Push DB schema    | `npm run db:push` |
-| Seed data sources | `npm run db:seed` |
+- `npm run dev` — `tsx watch src/index.ts`, serves `:8762`
+- `npm run build` / `npm run start` — `tsc` → `node dist/index.js`
+- `npm run db:push` then `npm run db:seed` — create SQLite schema, then seed data sources (order matters; seed assumes schema exists)
 
-- No dedicated `typecheck` script. Type checking happens as part of `npm run build` via `tsc -b`.
-- No test framework is configured yet.
+Tests: no framework / no script. `tests/api-integration.test.ts` uses `node:test` — run `node --test tests/api-integration.test.ts` with a seeded backend running on `:8762` (expects `admin@example.com` / `admin123`, invite code `hotnews2026`).
 
-## Tech stack & toolchain
+## Gotchas
 
-### Core framework
+- Frontend API URL is hardcoded: `src/services/api.ts` uses `http://localhost:8762/api` and `vite.config.ts` has no proxy. Frontend dev requires the backend running; changing ports means editing `api.ts`.
+- Backend env comes from `backend/.env` (copy from `backend/.env.example`), validated with defaults by zod in `backend/src/utils/env.ts`.
+- Every backend start syncs the earliest-created admin account to the `ADMIN_*` env values (`initializeDefaults` in `backend/src/index.ts`). Admin credential changes made via UI/API are overwritten on restart — update `.env` instead.
+- SQLite file is `backend/data/database.db` (gitignored, auto-created, WAL mode). Drizzle config: `backend/drizzle.config.ts`, schema `backend/src/db/schema.ts`.
+- Uploads: multipart limit 10 MB / 10 files, served at `/uploads/` from `UPLOAD_ROOT` (`backend/src/utils/uploads.ts`).
+- All frontend routes require login; `/admin/*` requires admin role (`ProtectedRoute` / `AdminRoute` in `src/App.tsx`). API auth is `Authorization: Bearer <token>`.
 
-- **Bundler:** Vite 8 with `@vitejs/plugin-react` (OXC-based, not SWC)
-- **Linter:** oxlint (NOT ESLint). Config in `.oxlintrc.json`. Plugins: react, typescript, oxc.
-- **TypeScript:** ~6.0.2 with project references (`tsconfig.json` → `tsconfig.app.json` + `tsconfig.node.json`). Build uses `tsc -b`.
-- **Strict TS flags:** `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `verbatimModuleSyntax`
-- **Module system:** ESM (`"type": "module"` in package.json)
-- **Code formatter:** Prettier
+## Conventions
 
-### Frontend
-
-- **CSS:** Tailwind CSS
-- **UI components:** Shadcn/ui (built on Radix UI)
-- **State management:** Zustand
-- **Routing:** React Router v7
-- **Data fetching:** TanStack Query + Fetch
-- **Form handling:** React Hook Form
-- **Data validation:** Zod
-- **Charts:** ECharts
-- **Internationalization:** react-i18next
-- **Icons:** Lucide React
-- **Date/time:** Day.js
-- **Animations:** Framer Motion
-- **Notifications:** Sonner
-
-### Backend
-
-- **Framework:** Node.js + Fastify
-- **Database:** SQLite + Drizzle ORM
-- **API docs:** Swagger/OpenAPI
-
-## Key conventions
-
-- `src/` contains the React app. Entry: `src/main.tsx` → `src/App.tsx`.
-- `public/` has static assets (`favicon.svg`, `icons.svg`).
-- `docs/public-api-doc.md` documents all tested public API endpoints (Chinese social/news platforms, dev communities, AI/tech media). Consult this before adding new data sources.
-- `backend/` contains the Fastify API server.
-
-## Quirks
-
-- `tsconfig.node.json` only covers `vite.config.ts`; `tsconfig.app.json` covers `src/`. They use different `module` settings (`nodenext` vs `esnext`).
-- The `erasableSyntaxOnly` TS flag means runtime-enumerable syntax (e.g. `enum`, `namespace`) is disallowed. Use `const` objects or union types instead.
-- Oxlint rules: `react/rules-of-hooks` is error, `react/only-export-components` is warn.
+- Import alias `@/*` → `src/*` (defined in both `vite.config.ts` and `tsconfig.app.json`); shadcn aliases in `components.json` (`@/components`, `@/lib`, `@/hooks`, …).
+- TypeScript: project references (`tsc -b`; `tsconfig.app.json` covers `src/`, `tsconfig.node.json` covers `vite.config.ts`). `erasableSyntaxOnly` (no `enum`/`namespace` — use const objects/unions), `verbatimModuleSyntax` (use `import type`), `noUnusedLocals`/`noUnusedParameters` (unused vars fail the build).
+- Router is `react-router` v8 imported from `'react-router'` (not `react-router-dom`, not v7).
+- Tailwind CSS v4: `@import 'tailwindcss'` + `@theme` in `src/index.css`, no `tailwind.config.js`. Shadcn style `base-nova`.
+- Pre-commit runs `npx lint-staged` (husky): `oxlint --fix` + `prettier --write` on `*.{ts,tsx}`. Prettier: no semicolons, single quotes, 100 col (`.prettierrc`).
