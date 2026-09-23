@@ -47,7 +47,6 @@ export interface DataSource {
   body: string | null
   parser: string | null
   enabled: boolean
-  fetchInterval: number
   lastFetchAt: string | null
   lastError: string | null
   description: string | null

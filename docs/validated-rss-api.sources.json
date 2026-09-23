@@ -8,7 +8,6 @@
     "headers": null,
     "parser": "zhihu",
     "enabled": true,
-    "fetchInterval": 30,
     "description": "返回 50 条热榜，含标题、热度、URL"
   },
   {
@@ -23,7 +22,6 @@
     },
     "parser": "weibo",
     "enabled": true,
-    "fetchInterval": 30,
     "description": "返回 50 条热搜，含关键词、热度、标签"
   },
   {
@@ -35,7 +33,6 @@
     "headers": null,
     "parser": "bilibili",
     "enabled": true,
-    "fetchInterval": 30,
     "description": "返回热搜关键词及热度分数"
   },
   {
@@ -47,7 +44,6 @@
     "headers": null,
     "parser": "toutiao",
     "enabled": true,
-    "fetchInterval": 30,
     "description": "返回热榜列表，含标题、URL、热度、分类"
   },
   {
@@ -59,7 +55,6 @@
     "headers": null,
     "parser": "zhihu-daily",
     "enabled": true,
-    "fetchInterval": 60,
     "description": "返回每日最新文章列表"
   },
   {
@@ -71,7 +66,6 @@
     "headers": null,
     "parser": "thepaper",
     "enabled": true,
-    "fetchInterval": 30,
     "description": "返回侧边栏热门文章"
   },
   {
@@ -83,7 +77,6 @@
     "headers": null,
     "parser": "juejin",
     "enabled": true,
-    "fetchInterval": 30,
     "description": "返回推荐文章"
   },
   {
@@ -95,7 +88,6 @@
     "headers": null,
     "parser": "csdn",
     "enabled": true,
-    "fetchInterval": 30,
     "description": "返回热榜文章，含标题、阅读量、评论数"
   },
   {
@@ -107,7 +99,6 @@
     "headers": null,
     "parser": "github",
     "enabled": true,
-    "fetchInterval": 60,
     "description": "搜索热门仓库，含 star 数、描述等"
   },
   {
@@ -119,7 +110,6 @@
     "headers": null,
     "parser": "huggingface",
     "enabled": true,
-    "fetchInterval": 60,
     "description": "返回热门模型列表，含下载量、点赞数"
   },
   {
@@ -131,7 +121,6 @@
     "headers": null,
     "parser": "jiqizhixin",
     "enabled": false,
-    "fetchInterval": 30,
     "description": "返回 AI/ML 文章列表（已禁用：抓取成功率低）"
   },
   {
@@ -143,7 +132,6 @@
     "headers": null,
     "parser": "qbitai",
     "enabled": true,
-    "fetchInterval": 60,
     "description": "RSS 格式，返回最新 AI 资讯"
   },
   {
@@ -155,7 +143,6 @@
     "headers": null,
     "parser": "google-ai",
     "enabled": true,
-    "fetchInterval": 120,
     "description": "RSS 格式"
   },
   {
@@ -167,7 +154,6 @@
     "headers": null,
     "parser": "mit-tech",
     "enabled": true,
-    "fetchInterval": 120,
     "description": "RSS 格式"
   },
   {
@@ -179,7 +165,6 @@
     "headers": null,
     "parser": "hyperai",
     "enabled": false,
-    "fetchInterval": 60,
     "description": "返回 HTML，需解析（已禁用）"
   },
   {
@@ -191,7 +176,6 @@
     "headers": null,
     "parser": "36kr",
     "enabled": false,
-    "fetchInterval": 30,
     "description": "返回热榜文章（已禁用：接口变更）"
   },
   {
@@ -203,7 +187,6 @@
     "headers": null,
     "parser": "baidu",
     "enabled": true,
-    "fetchInterval": 30,
     "description": "返回 HTML，需解析 word 字段"
   },
   {
@@ -215,7 +198,6 @@
     "headers": null,
     "parser": "douban",
     "enabled": true,
-    "fetchInterval": 60,
     "description": "返回热门电影列表"
   },
   {
@@ -227,7 +209,6 @@
     "headers": null,
     "parser": "ithome",
     "enabled": true,
-    "fetchInterval": 30,
     "description": "XML 格式新闻列表"
   },
   {
@@ -239,7 +220,6 @@
     "headers": null,
     "parser": "hackernews",
     "enabled": true,
-    "fetchInterval": 30,
     "description": "全球最热门的技术新闻和创业资讯"
   },
   {
@@ -251,7 +231,6 @@
     "headers": null,
     "parser": "v2ex",
     "enabled": true,
-    "fetchInterval": 30,
     "description": "V2EX 开发者社区热门话题"
   },
   {
@@ -263,7 +242,6 @@
     "headers": null,
     "parser": "",
     "enabled": true,
-    "fetchInterval": 30,
     "description": "科技爱好者周刊，Atom 格式，含全文 HTML 与图片"
   },
   {
@@ -275,7 +253,6 @@
     "headers": null,
     "parser": "",
     "enabled": true,
-    "fetchInterval": 30,
     "description": "经 RSSHub 公共镜像代理（rsshub.app 官方实例封禁程序化抓取，勿用）"
   },
   {
@@ -287,7 +264,6 @@
     "headers": null,
     "parser": "",
     "enabled": true,
-    "fetchInterval": 30,
     "description": "经 anyfeeder 聚合代理"
   }
 ]

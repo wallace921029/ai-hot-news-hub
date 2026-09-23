@@ -1,28 +1,9 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
-import { dataSources, fetchLogs, newsItems } from '../../db/schema.js'
+import { dataSources, fetchLogs } from '../../db/schema.js'
 import { eq, desc } from 'drizzle-orm'
-import { RestFetcher } from '../../fetchers/rest.js'
-import { RssFetcher } from '../../fetchers/rss.js'
-import { HtmlFetcher } from '../../fetchers/html.js'
-
-const restFetcher = new RestFetcher()
-const rssFetcher = new RssFetcher()
-const htmlFetcher = new HtmlFetcher()
-
-function getFetcher(type: string) {
-  switch (type) {
-    case 'rest':
-      return restFetcher
-    case 'rss':
-      return rssFetcher
-    case 'html':
-      return htmlFetcher
-    default:
-      throw new Error(`未知的数据源类型: ${type}`)
-  }
-}
+import { fetchSource } from '../../scheduler/index.js'
 
 const sourceSchema = z.object({
   name: z.string().min(1).max(100),
@@ -34,7 +15,6 @@ const sourceSchema = z.object({
   body: z.string().optional(),
   parser: z.string().optional(),
   enabled: z.boolean().default(true),
-  fetchInterval: z.number().min(5).max(1440).default(720),
   description: z.string().optional(),
 })
 
@@ -112,7 +92,7 @@ export async function sourceRoutes(app: FastifyInstance) {
     return { success: true }
   })
 
-  // 手动触发抓取
+  // 手动触发抓取（复用 fetchSource：含重试，结果写入 fetch_logs；手动插入的文章直接标记 processed）
   app.post('/:id/fetch', async (request, reply) => {
     const { id } = request.params as { id: string }
 
@@ -126,64 +106,9 @@ export async function sourceRoutes(app: FastifyInstance) {
       return reply.status(404).send({ error: '数据源不存在' })
     }
 
-    // 异步执行抓取
-    const fetcher = getFetcher(source.type)
-    const headers = source.headers ? JSON.parse(source.headers) : undefined
-
-    fetcher
-      .fetch({
-        id: source.id,
-        name: source.name,
-        url: source.url,
-        method: source.method || undefined,
-        headers,
-        body: source.body || undefined,
-        parser: source.parser || undefined,
-      })
-      .then(async (items) => {
-        // 保存抓取结果
-        let savedCount = 0
-        for (const item of items) {
-          try {
-            await db.insert(newsItems).values({
-              sourceId: item.sourceId,
-              sourceType: source.sourceType || 'api',
-              platform: item.platform,
-              title: item.title,
-              url: item.url,
-              description: item.description,
-              author: item.author,
-              publishedAt: item.publishedAt,
-              fetchedAt: item.fetchedAt,
-              hotScore: item.hotScore,
-              metadata: item.metadata ? JSON.stringify(item.metadata) : null,
-              status: 'processed',
-            })
-            savedCount++
-          } catch (insertError) {
-            // 记录插入错误以便调试
-            if (insertError instanceof Error && !insertError.message.includes('UNIQUE')) {
-              console.error(`⚠️ 插入失败 [${source.name}]: ${item.title} - ${insertError.message}`)
-            }
-          }
-        }
-
-        // 更新数据源状态
-        await db
-          .update(dataSources)
-          .set({ lastFetchAt: new Date(), lastError: null, updatedAt: new Date() })
-          .where(eq(dataSources.id, source.id))
-
-        console.log(`✅ 手动抓取成功: ${source.name} (${savedCount} 条)`)
-      })
-      .catch(async (error) => {
-        const errorMessage = error instanceof Error ? error.message : '未知错误'
-        await db
-          .update(dataSources)
-          .set({ lastError: errorMessage, updatedAt: new Date() })
-          .where(eq(dataSources.id, source.id))
-        console.error(`❌ 手动抓取失败: ${source.name} - ${errorMessage}`)
-      })
+    fetchSource(source, { status: 'processed' }).catch((error) => {
+      console.error(`❌ 手动抓取异常: ${source.name}`, error)
+    })
 
     return { success: true, message: '抓取任务已触发' }
   })

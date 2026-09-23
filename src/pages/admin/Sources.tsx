@@ -44,7 +44,6 @@ interface RssForm {
   name: string
   url: string
   enabled: boolean
-  fetchInterval: number
   description: string
 }
 
@@ -52,7 +51,6 @@ const defaultRssForm: RssForm = {
   name: '',
   url: '',
   enabled: true,
-  fetchInterval: 720,
   description: '',
 }
 
@@ -203,7 +201,6 @@ export function AdminSources() {
       name: source.name,
       url: source.url,
       enabled: source.enabled,
-      fetchInterval: source.fetchInterval,
       description: source.description || '',
     })
     setDialogOpen(true)
@@ -274,26 +271,13 @@ export function AdminSources() {
                   placeholder="https://example.com/feed"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>{t('admin.sources.fetchInterval')}</Label>
-                  <Input
-                    type="number"
-                    value={form.fetchInterval}
-                    onChange={(e) =>
-                      setForm({ ...form, fetchInterval: parseInt(e.target.value) || 720 })
-                    }
-                    min={5}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>{t('admin.sources.description')}</Label>
-                  <Input
-                    value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    placeholder={t('common.more')}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>{t('admin.sources.description')}</Label>
+                <Input
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder={t('common.more')}
+                />
               </div>
               <div className="flex items-center space-x-2">
                 <Switch

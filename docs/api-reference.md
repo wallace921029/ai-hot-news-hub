@@ -422,7 +422,6 @@ GET /api/admin/sources
     "body": null,
     "parser": "zhihu",
     "enabled": true,
-    "fetchInterval": 30,
     "lastFetchAt": "2026-09-20T00:00:00.000Z",
     "lastError": null,
     "description": "知乎热榜数据",
@@ -453,7 +452,6 @@ POST /api/admin/sources
   "body": "string", // POST 请求体，可选
   "parser": "string", // 解析器标识，可选
   "enabled": true, // 是否启用，默认 true
-  "fetchInterval": 30, // 抓取间隔（分钟），5-1440
   "description": "string" // 描述，可选
 }
 ```
@@ -472,7 +470,6 @@ POST /api/admin/sources
   "body": null,
   "parser": "zhihu",
   "enabled": true,
-  "fetchInterval": 30,
   "lastFetchAt": null,
   "lastError": null,
   "description": "知乎热榜数据",
@@ -1004,7 +1001,8 @@ GET /api/admin/config
 {
   "inviteCode": "abc123",
   "registrationEnabled": true,
-  "fetchInterval": 30,
+  "rssFetchInterval": 30,
+  "apiFetchInterval": 30,
   "autoFetchEnabled": true,
   "aiApiKey": "***",
   "aiBaseUrl": "https://api.openai.com/v1",
@@ -1030,7 +1028,8 @@ PUT /api/admin/config
 {
   "inviteCode": "string",           // 邀请码，可选
   "registrationEnabled": boolean,   // 注册开关，可选
-  "fetchInterval": number,          // 抓取间隔（分钟），可选
+  "rssFetchInterval": number,       // RSS 订阅刷新间隔（分钟），5-1440，可选
+  "apiFetchInterval": number,       // API 订阅刷新间隔（分钟），5-1440，可选
   "aiApiKey": "string",             // AI API Key，可选
   "aiBaseUrl": "string",            // AI Base URL，可选
   "aiModel": "string"               // AI 模型名称，可选

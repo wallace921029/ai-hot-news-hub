@@ -37,7 +37,6 @@ export const dataSources = sqliteTable('data_sources', {
   body: text('body'),
   parser: text('parser'),
   enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
-  fetchInterval: integer('fetch_interval').notNull().default(720), // 分钟
   lastFetchAt: integer('last_fetch_at', { mode: 'timestamp' }),
   lastError: text('last_error'),
   description: text('description'),
@@ -207,7 +206,7 @@ export const fetchLogs = sqliteTable('fetch_logs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   sourceId: integer('source_id')
     .notNull()
-    .references(() => dataSources.id),
+    .references(() => dataSources.id, { onDelete: 'cascade' }),
   status: text('status', { enum: ['success', 'failed'] }).notNull(),
   duration: integer('duration').notNull(), // 毫秒
   count: integer('count').notNull().default(0),
@@ -244,7 +243,7 @@ export const systemConfig = sqliteTable('system_config', {
 // 错误告警表
 export const errorAlerts = sqliteTable('error_alerts', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  sourceId: integer('source_id').references(() => dataSources.id),
+  sourceId: integer('source_id').references(() => dataSources.id, { onDelete: 'cascade' }),
   alertType: text('alert_type', { enum: ['consecutive_failures', 'error_spike'] }).notNull(),
   message: text('message').notNull(),
   details: text('details'), // JSON string

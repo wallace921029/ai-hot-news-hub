@@ -21,7 +21,8 @@ export function AdminConfig() {
   const [basicForm, setBasicForm] = useState({
     inviteCode: '',
     registrationEnabled: true,
-    fetchInterval: 30,
+    rssFetchInterval: 30,
+    apiFetchInterval: 30,
   })
   const [models, setModels] = useState<string[]>([])
   const [loadingModels, setLoadingModels] = useState(false)
@@ -47,7 +48,8 @@ export function AdminConfig() {
       setBasicForm({
         inviteCode: config.inviteCode || '',
         registrationEnabled: config.registrationEnabled ?? true,
-        fetchInterval: config.fetchInterval || 30,
+        rssFetchInterval: config.rssFetchInterval || 30,
+        apiFetchInterval: config.apiFetchInterval || 30,
       })
     }
   }, [config])
@@ -250,7 +252,7 @@ export function AdminConfig() {
               <div>
                 <Label>{t('admin.config.autoFetch')}</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {t('admin.config.autoFetchDesc', { interval: basicForm.fetchInterval })}
+                  {t('admin.config.autoFetchDesc')}
                 </p>
               </div>
               <Switch
@@ -259,12 +261,31 @@ export function AdminConfig() {
               />
             </div>
             <div className="space-y-2">
-              <Label>{t('admin.config.fetchInterval')}</Label>
+              <Label>{t('admin.config.rssFetchInterval')}</Label>
               <Input
                 type="number"
-                value={basicForm.fetchInterval}
+                value={basicForm.rssFetchInterval}
                 onChange={(e) =>
-                  setBasicForm({ ...basicForm, fetchInterval: parseInt(e.target.value) || 30 })
+                  setBasicForm({
+                    ...basicForm,
+                    rssFetchInterval: parseInt(e.target.value) || 30,
+                  })
+                }
+                min={5}
+                max={1440}
+                className="max-w-xs"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('admin.config.apiFetchInterval')}</Label>
+              <Input
+                type="number"
+                value={basicForm.apiFetchInterval}
+                onChange={(e) =>
+                  setBasicForm({
+                    ...basicForm,
+                    apiFetchInterval: parseInt(e.target.value) || 30,
+                  })
                 }
                 min={5}
                 max={1440}

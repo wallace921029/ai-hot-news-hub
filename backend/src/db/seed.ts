@@ -11,7 +11,6 @@ const defaultSources = [
     method: 'GET' as const,
     parser: 'zhihu',
     enabled: true,
-    fetchInterval: 30,
     description: '返回 50 条热榜，含标题、热度、URL',
   },
   {
@@ -25,7 +24,6 @@ const defaultSources = [
     }),
     parser: 'weibo',
     enabled: true,
-    fetchInterval: 30,
     description: '返回 50 条热搜，含关键词、热度、标签',
   },
   {
@@ -35,7 +33,6 @@ const defaultSources = [
     method: 'GET' as const,
     parser: 'bilibili',
     enabled: true,
-    fetchInterval: 30,
     description: '返回热搜关键词及热度分数',
   },
   {
@@ -45,7 +42,6 @@ const defaultSources = [
     method: 'GET' as const,
     parser: 'toutiao',
     enabled: true,
-    fetchInterval: 30,
     description: '返回热榜列表，含标题、URL、热度、分类',
   },
   {
@@ -55,7 +51,6 @@ const defaultSources = [
     method: 'GET' as const,
     parser: 'zhihu',
     enabled: true,
-    fetchInterval: 60,
     description: '返回每日最新文章列表',
   },
   {
@@ -65,7 +60,6 @@ const defaultSources = [
     method: 'GET' as const,
     parser: 'thepaper',
     enabled: true,
-    fetchInterval: 30,
     description: '返回侧边栏热门文章',
   },
 
@@ -78,7 +72,6 @@ const defaultSources = [
     body: JSON.stringify({ cursor: '0', limit: 20 }),
     parser: 'juejin',
     enabled: true,
-    fetchInterval: 30,
     description: '返回推荐文章',
   },
   {
@@ -88,7 +81,6 @@ const defaultSources = [
     method: 'GET' as const,
     parser: 'csdn',
     enabled: true,
-    fetchInterval: 30,
     description: '返回热榜文章，含标题、阅读量、评论数',
   },
   {
@@ -98,7 +90,6 @@ const defaultSources = [
     method: 'GET' as const,
     parser: 'github',
     enabled: true,
-    fetchInterval: 60,
     description: '搜索热门仓库，含 star 数、描述等',
   },
   {
@@ -108,7 +99,6 @@ const defaultSources = [
     method: 'GET' as const,
     parser: 'huggingface',
     enabled: true,
-    fetchInterval: 60,
     description: '返回热门模型列表，含下载量、点赞数',
   },
 
@@ -120,7 +110,6 @@ const defaultSources = [
     method: 'GET' as const,
     parser: 'jiqizhixin',
     enabled: true,
-    fetchInterval: 30,
     description: '返回 AI/ML 文章列表',
   },
   {
@@ -130,7 +119,6 @@ const defaultSources = [
     url: 'https://www.qbitai.com/feed',
     parser: 'qbitai',
     enabled: true,
-    fetchInterval: 60,
     description: 'RSS 格式，返回最新 AI 资讯',
   },
   {
@@ -140,7 +128,6 @@ const defaultSources = [
     url: 'https://blog.google/technology/ai/rss/',
     parser: 'google-ai',
     enabled: true,
-    fetchInterval: 120,
     description: 'RSS 格式',
   },
   {
@@ -150,7 +137,6 @@ const defaultSources = [
     url: 'https://www.technologyreview.com/feed/',
     parser: 'mit-tech',
     enabled: true,
-    fetchInterval: 120,
     description: 'RSS 格式',
   },
   {
@@ -159,7 +145,6 @@ const defaultSources = [
     url: 'https://hyper.ai/api/v1/articles?page=1&limit=20',
     parser: 'hyperai',
     enabled: true,
-    fetchInterval: 60,
     description: '返回 HTML，需解析',
   },
 
@@ -172,7 +157,6 @@ const defaultSources = [
     body: JSON.stringify({ partner_id: 'wap', param: { siteId: 1, platformId: 2 } }),
     parser: '36kr',
     enabled: true,
-    fetchInterval: 30,
     description: '返回热榜文章',
   },
   {
@@ -181,7 +165,6 @@ const defaultSources = [
     url: 'https://top.baidu.com/board?tab=realtime',
     parser: 'baidu',
     enabled: true,
-    fetchInterval: 30,
     description: '返回 HTML，需解析 word 字段',
   },
   {
@@ -191,7 +174,6 @@ const defaultSources = [
     method: 'GET' as const,
     parser: 'douban',
     enabled: true,
-    fetchInterval: 60,
     description: '返回热门电影列表',
   },
   {
@@ -200,7 +182,6 @@ const defaultSources = [
     url: 'https://api.ithome.com/xml/newslist/news.xml',
     parser: 'ithome',
     enabled: true,
-    fetchInterval: 30,
     description: 'XML 格式新闻列表',
   },
 
@@ -212,7 +193,6 @@ const defaultSources = [
     url: 'https://news.ycombinator.com/rss',
     parser: 'hackernews',
     enabled: true,
-    fetchInterval: 30,
     description: '全球最热门的技术新闻和创业资讯',
   },
   {
@@ -222,7 +202,6 @@ const defaultSources = [
     method: 'GET' as const,
     parser: 'v2ex',
     enabled: true,
-    fetchInterval: 30,
     description: 'V2EX 开发者社区热门话题',
   },
 ]

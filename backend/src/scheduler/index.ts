@@ -1,14 +1,39 @@
-import cron from 'node-cron'
 import { db } from '../db/index.js'
-import { dataSources, newsItems, fetchLogs, systemConfig } from '../db/schema.js'
-import { eq } from 'drizzle-orm'
+import {
+  dataSources,
+  newsItems,
+  fetchLogs,
+  systemConfig,
+  aiLogs,
+  errorAlerts,
+} from '../db/schema.js'
+import { eq, and, inArray, count, sql } from 'drizzle-orm'
 import { RestFetcher } from '../fetchers/rest.js'
 import { RssFetcher } from '../fetchers/rss.js'
 import { HtmlFetcher } from '../fetchers/html.js'
 import type { Fetcher, RawNewsItem } from '../fetchers/types.js'
 import { checkAndCreateAlerts } from '../services/alerts.js'
 
+// ===== 常量 =====
+const TICK_MS = 60_000 // 每分钟一个调度 tick
+const CONCURRENCY = 5 // 单轮内数据源分批并发数
+const FETCH_ATTEMPTS = 3 // 单源抓取总尝试次数
+const RETRY_DELAYS_MS = [3_000, 10_000] // 首次失败后退避
+const NEWS_RETENTION_DAYS = 30 // 新闻保留天数（被收藏的永不清）
+const LOG_RETENTION_DAYS = 90 // 抓取日志/告警保留天数
+const DEFAULT_INTERVAL_MIN = 30 // 默认刷新间隔（分钟）
+
+type Category = 'rss' | 'api'
+type InsertStatus = 'pending' | 'processed'
+
+// ===== 状态 =====
 let autoFetchEnabled = false
+let rssIntervalMins = DEFAULT_INTERVAL_MIN
+let apiIntervalMins = DEFAULT_INTERVAL_MIN
+const lastRun: Record<Category, number> = { rss: 0, api: 0 }
+let roundRunning = false
+let cleanupDayKey = ''
+let tickTimer: NodeJS.Timeout | null = null
 
 const restFetcher = new RestFetcher()
 const rssFetcher = new RssFetcher()
@@ -27,15 +52,17 @@ function getFetcher(type: string): Fetcher {
   }
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 // 去重检查
 async function isDuplicate(url: string, title: string): Promise<boolean> {
-  // URL 去重
   const existingByUrl = await db.select().from(newsItems).where(eq(newsItems.url, url)).limit(1)
   if (existingByUrl.length > 0) {
     return true
   }
 
-  // 标题去重（简单实现，后续可优化为编辑距离）
   const existingByTitle = await db
     .select()
     .from(newsItems)
@@ -49,7 +76,11 @@ async function isDuplicate(url: string, title: string): Promise<boolean> {
 }
 
 // 保存新闻条目
-async function saveNewsItems(items: RawNewsItem[], sourceType: 'rss' | 'api' | 'topic' = 'api') {
+async function saveNewsItems(
+  items: RawNewsItem[],
+  sourceType: 'rss' | 'api' | 'topic' = 'api',
+  status: InsertStatus = 'pending'
+) {
   let savedCount = 0
 
   for (const item of items) {
@@ -71,7 +102,7 @@ async function saveNewsItems(items: RawNewsItem[], sourceType: 'rss' | 'api' | '
         fetchedAt: item.fetchedAt,
         hotScore: item.hotScore,
         metadata: item.metadata ? JSON.stringify(item.metadata) : null,
-        status: 'pending',
+        status,
       })
 
       savedCount++
@@ -84,28 +115,51 @@ async function saveNewsItems(items: RawNewsItem[], sourceType: 'rss' | 'api' | '
   return savedCount
 }
 
-// 抓取单个数据源
-async function fetchSource(source: typeof dataSources.$inferSelect) {
+// 抓取单个数据源（含重试：总尝试 FETCH_ATTEMPTS 次，退避 RETRY_DELAYS_MS）
+export async function fetchSource(
+  source: typeof dataSources.$inferSelect,
+  opts?: { status?: InsertStatus }
+) {
   const startTime = Date.now()
+  const insertStatus: InsertStatus = opts?.status ?? 'pending'
 
-  try {
-    const fetcher = getFetcher(source.type)
-    const headers = source.headers ? JSON.parse(source.headers) : undefined
+  let items: RawNewsItem[] | null = null
+  let attempts = 0
+  let lastError: unknown = null
 
-    const items = await fetcher.fetch({
-      id: source.id,
-      name: source.name,
-      url: source.url,
-      method: source.method || undefined,
-      headers,
-      body: source.body || undefined,
-      parser: source.parser || undefined,
-    })
+  for (let i = 0; i < FETCH_ATTEMPTS; i++) {
+    attempts = i + 1
+    try {
+      const fetcher = getFetcher(source.type)
+      const headers = source.headers ? JSON.parse(source.headers) : undefined
 
-    const savedCount = await saveNewsItems(items, source.sourceType || 'api')
-    const duration = Date.now() - startTime
+      items = await fetcher.fetch({
+        id: source.id,
+        name: source.name,
+        url: source.url,
+        method: source.method || undefined,
+        headers,
+        body: source.body || undefined,
+        parser: source.parser || undefined,
+      })
+      break
+    } catch (error) {
+      lastError = error
+      const message = error instanceof Error ? error.message : '未知错误'
+      if (i < FETCH_ATTEMPTS - 1) {
+        console.warn(
+          `⚠️ 抓取失败（第 ${attempts}/${FETCH_ATTEMPTS} 次）: ${source.name} - ${message}，${RETRY_DELAYS_MS[i] / 1000}s 后重试`
+        )
+        await sleep(RETRY_DELAYS_MS[i])
+      }
+    }
+  }
 
-    // 记录抓取日志
+  const duration = Date.now() - startTime
+
+  if (items) {
+    const savedCount = await saveNewsItems(items, source.sourceType || 'api', insertStatus)
+
     await db.insert(fetchLogs).values({
       sourceId: source.id,
       status: 'success',
@@ -113,7 +167,6 @@ async function fetchSource(source: typeof dataSources.$inferSelect) {
       count: savedCount,
     })
 
-    // 更新数据源的上次抓取时间
     await db
       .update(dataSources)
       .set({
@@ -124,11 +177,13 @@ async function fetchSource(source: typeof dataSources.$inferSelect) {
       .where(eq(dataSources.id, source.id))
 
     console.log(`✅ 抓取成功: ${source.name} (${savedCount} 条, ${duration}ms)`)
-  } catch (error) {
-    const duration = Date.now() - startTime
-    const errorMessage = error instanceof Error ? error.message : '未知错误'
+  } else {
+    let errorMessage = lastError instanceof Error ? lastError.message : '未知错误'
+    if (attempts > 1) {
+      errorMessage += `（已尝试${attempts}次）`
+    }
 
-    // 记录错误日志
+    // 只记最终结果一行
     await db.insert(fetchLogs).values({
       sourceId: source.id,
       status: 'failed',
@@ -137,7 +192,6 @@ async function fetchSource(source: typeof dataSources.$inferSelect) {
       error: errorMessage,
     })
 
-    // 更新数据源的错误信息
     await db
       .update(dataSources)
       .set({
@@ -150,22 +204,33 @@ async function fetchSource(source: typeof dataSources.$inferSelect) {
   }
 }
 
-// 抓取所有启用的数据源
-export async function fetchAllSources() {
-  console.log('🔄 开始抓取所有数据源...')
+// 抓取数据源；category 缺省时抓全部（手动"获取全部"）
+export async function fetchAllSources(category?: Category) {
+  const tag = category ? `[${category.toUpperCase()}] ` : ''
+  console.log(`🔄 ${tag}开始抓取数据源...`)
 
-  const sources = await db.select().from(dataSources).where(eq(dataSources.enabled, true))
+  const conditions = [eq(dataSources.enabled, true)]
+  if (category === 'rss') {
+    conditions.push(eq(dataSources.type, 'rss'))
+  } else if (category === 'api') {
+    conditions.push(inArray(dataSources.type, ['rest', 'html']))
+  }
 
-  // 并发抓取，但限制并发数
-  const concurrency = 5
-  for (let i = 0; i < sources.length; i += concurrency) {
-    const batch = sources.slice(i, i + concurrency)
+  const sources = await db
+    .select()
+    .from(dataSources)
+    .where(and(...conditions))
+
+  const batches: (typeof sources)[] = []
+  for (let i = 0; i < sources.length; i += CONCURRENCY) {
+    batches.push(sources.slice(i, i + CONCURRENCY))
+  }
+  for (const batch of batches) {
     await Promise.all(batch.map((source) => fetchSource(source)))
   }
 
-  console.log('✅ 所有数据源抓取完成')
+  console.log(`✅ ${tag}抓取完成（${sources.length} 个源）`)
 
-  // 检查并生成告警
   try {
     await checkAndCreateAlerts()
   } catch (error) {
@@ -173,16 +238,72 @@ export async function fetchAllSources() {
   }
 }
 
-// 获取自动抓取状态
+// ===== 过期数据清理（由 tick 每日触发，也可手动调用） =====
+export async function runCleanupOnce() {
+  const nowSec = Math.floor(Date.now() / 1000)
+  const newsCutoff = nowSec - NEWS_RETENTION_DAYS * 86400
+  const logCutoff = nowSec - LOG_RETENTION_DAYS * 86400
+
+  const candidates = sql`id IN (
+    SELECT id FROM news_items
+    WHERE fetched_at < ${newsCutoff} AND id NOT IN (SELECT news_item_id FROM favorites)
+  )`
+
+  const [{ newsCount }] = await db.select({ newsCount: count() }).from(newsItems).where(candidates)
+
+  if (newsCount > 0) {
+    await db.delete(aiLogs).where(sql`news_item_id IN (
+        SELECT id FROM news_items
+        WHERE fetched_at < ${newsCutoff} AND id NOT IN (SELECT news_item_id FROM favorites)
+      )`)
+    await db.delete(newsItems).where(candidates)
+  }
+
+  const [{ logCount }] = await db
+    .select({ logCount: count() })
+    .from(fetchLogs)
+    .where(sql`created_at < ${logCutoff}`)
+  if (logCount > 0) {
+    await db.delete(fetchLogs).where(sql`created_at < ${logCutoff}`)
+  }
+
+  const [{ alertCount }] = await db
+    .select({ alertCount: count() })
+    .from(errorAlerts)
+    .where(sql`created_at < ${logCutoff}`)
+  if (alertCount > 0) {
+    await db.delete(errorAlerts).where(sql`created_at < ${logCutoff}`)
+  }
+
+  console.log(
+    `🧹 过期清理完成: 新闻 ${newsCount} 条、抓取日志 ${logCount} 条、告警 ${alertCount} 条（收藏的新闻永不清）`
+  )
+
+  return { newsCount, logCount, alertCount }
+}
+
+function maybeRunCleanup() {
+  const now = new Date()
+  const dayKey = now.toDateString()
+  if (now.getHours() >= 4 && cleanupDayKey !== dayKey) {
+    cleanupDayKey = dayKey // 先占位，失败也不再当日重试
+    runCleanupOnce().catch((error) => console.error('过期清理失败:', error))
+  }
+}
+
+// ===== 自动抓取开关 / 间隔配置 =====
 export function getAutoFetchEnabled() {
   return autoFetchEnabled
 }
 
-// 设置自动抓取状态
 export async function setAutoFetchEnabled(enabled: boolean) {
   autoFetchEnabled = enabled
+  if (enabled) {
+    // 开启后下个 tick 立即首轮（RSS 与 API 分两拍先后触发）
+    lastRun.rss = 0
+    lastRun.api = 0
+  }
 
-  // 保存到数据库
   const existing = await db
     .select()
     .from(systemConfig)
@@ -204,31 +325,116 @@ export async function setAutoFetchEnabled(enabled: boolean) {
   console.log(`⏰ 自动抓取已${enabled ? '开启' : '关闭'}`)
 }
 
-// 初始化自动抓取配置
-async function initAutoFetchConfig() {
-  const existing = await db
-    .select()
-    .from(systemConfig)
-    .where(eq(systemConfig.key, 'auto_fetch_enabled'))
-    .limit(1)
+// 配置页保存间隔后调用，立即生效
+export function applyFetchIntervals(rss?: number, api?: number) {
+  if (typeof rss === 'number' && rss >= 5 && rss <= 1440) {
+    rssIntervalMins = rss
+  }
+  if (typeof api === 'number' && api >= 5 && api <= 1440) {
+    apiIntervalMins = api
+  }
+  console.log(`⏱ 刷新间隔已更新: RSS ${rssIntervalMins} 分钟 / API ${apiIntervalMins} 分钟`)
+}
 
-  if (existing.length > 0) {
-    autoFetchEnabled = JSON.parse(existing[0].value) === true
+async function ensureIntervalConfig(map: Record<string, unknown>) {
+  // 旧全局键 fetch_interval 迁移为 RSS/API 两个新键
+  const legacy =
+    typeof map.fetch_interval === 'number' && map.fetch_interval >= 5 && map.fetch_interval <= 1440
+      ? (map.fetch_interval as number)
+      : undefined
+
+  for (const key of ['rss_fetch_interval', 'api_fetch_interval'] as const) {
+    if (typeof map[key] !== 'number') {
+      const value = legacy ?? DEFAULT_INTERVAL_MIN
+      map[key] = value
+      const existing = await db
+        .select()
+        .from(systemConfig)
+        .where(eq(systemConfig.key, key))
+        .limit(1)
+      if (existing.length === 0) {
+        await db.insert(systemConfig).values({ key, value: JSON.stringify(value) })
+      }
+    }
+  }
+
+  if (map.fetch_interval !== undefined) {
+    await db.delete(systemConfig).where(eq(systemConfig.key, 'fetch_interval'))
+    console.log('🗑 旧配置 fetch_interval 已迁移并删除')
   }
 }
 
-// 启动定时任务
-export async function startScheduler() {
-  // 初始化配置
-  await initAutoFetchConfig()
-
-  // 每 30 分钟检查一次
-  cron.schedule('*/30 * * * *', async () => {
-    if (!autoFetchEnabled) {
-      return
+async function initConfig() {
+  const rows = await db.select().from(systemConfig)
+  const map: Record<string, unknown> = {}
+  for (const row of rows) {
+    try {
+      map[row.key] = JSON.parse(row.value)
+    } catch {
+      // 忽略脏数据
     }
-    await fetchAllSources()
-  })
+  }
 
-  console.log(`⏰ 定时任务已启动（自动抓取: ${autoFetchEnabled ? '开启' : '关闭'}）`)
+  autoFetchEnabled = map.auto_fetch_enabled === true
+
+  await ensureIntervalConfig(map)
+
+  rssIntervalMins =
+    typeof map.rss_fetch_interval === 'number' && map.rss_fetch_interval >= 5
+      ? map.rss_fetch_interval
+      : DEFAULT_INTERVAL_MIN
+  apiIntervalMins =
+    typeof map.api_fetch_interval === 'number' && map.api_fetch_interval >= 5
+      ? map.api_fetch_interval
+      : DEFAULT_INTERVAL_MIN
+}
+
+// ===== 调度主循环 =====
+async function runRound(category: Category) {
+  roundRunning = true
+  try {
+    await fetchAllSources(category)
+  } catch (error) {
+    console.error(`[${category}] 抓取轮次异常:`, error)
+  } finally {
+    roundRunning = false
+    lastRun[category] = Date.now()
+  }
+}
+
+async function tick() {
+  try {
+    maybeRunCleanup()
+  } catch (error) {
+    console.error('过期清理异常:', error)
+  }
+
+  if (!autoFetchEnabled || roundRunning) {
+    return
+  }
+
+  const now = Date.now()
+  if (now - lastRun.rss >= rssIntervalMins * 60_000) {
+    await runRound('rss')
+    return
+  }
+  if (now - lastRun.api >= apiIntervalMins * 60_000) {
+    await runRound('api')
+  }
+}
+
+// 启动定时任务（系统 setInterval，不依赖 node-cron）
+export async function startScheduler() {
+  await initConfig()
+
+  if (tickTimer) {
+    clearInterval(tickTimer)
+  }
+  tickTimer = setInterval(() => {
+    tick().catch((error) => console.error('调度 tick 异常:', error))
+  }, TICK_MS)
+
+  console.log(
+    `⏰ 调度器已启动（自动抓取: ${autoFetchEnabled ? '开启' : '关闭'}，RSS ${rssIntervalMins} 分钟 / API ${apiIntervalMins} 分钟）`
+  )
 }

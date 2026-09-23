@@ -119,7 +119,8 @@ async function initializeDefaults() {
   const defaultConfigs = [
     { key: 'invite_code', value: JSON.stringify(env.INVITE_CODE) },
     { key: 'registration_enabled', value: JSON.stringify(true) },
-    { key: 'fetch_interval', value: JSON.stringify(30) },
+    { key: 'rss_fetch_interval', value: JSON.stringify(30) },
+    { key: 'api_fetch_interval', value: JSON.stringify(30) },
   ]
 
   for (const config of defaultConfigs) {

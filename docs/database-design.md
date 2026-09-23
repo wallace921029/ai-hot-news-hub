@@ -93,24 +93,23 @@ export const users = sqliteTable('users', {
 
 **表结构：**
 
-| 字段名         | 类型    | 约束                          | 说明                        |
-| -------------- | ------- | ----------------------------- | --------------------------- |
-| id             | INTEGER | PRIMARY KEY, AUTOINCREMENT    | 数据源 ID                   |
-| name           | TEXT    | NOT NULL                      | 数据源名称                  |
-| type           | TEXT    | NOT NULL                      | 数据源类型：rest, rss, html |
-| source_type    | TEXT    | NOT NULL, DEFAULT 'api'       | 来源类型：rss, api, topic   |
-| url            | TEXT    | NOT NULL                      | API/源地址                  |
-| method         | TEXT    | DEFAULT 'GET'                 | 请求方法：GET, POST         |
-| headers        | TEXT    | -                             | 自定义请求头（JSON 字符串） |
-| body           | TEXT    | -                             | POST 请求体                 |
-| parser         | TEXT    | -                             | 解析器标识                  |
-| enabled        | INTEGER | NOT NULL, DEFAULT 1           | 是否启用：1=启用, 0=禁用    |
-| fetch_interval | INTEGER | NOT NULL, DEFAULT 30          | 抓取间隔（分钟）            |
-| last_fetch_at  | INTEGER | -                             | 上次抓取时间（时间戳）      |
-| last_error     | TEXT    | -                             | 上次错误信息                |
-| description    | TEXT    | -                             | 描述                        |
-| created_at     | INTEGER | NOT NULL, DEFAULT unixepoch() | 创建时间（时间戳）          |
-| updated_at     | INTEGER | NOT NULL, DEFAULT unixepoch() | 更新时间（时间戳）          |
+| 字段名        | 类型    | 约束                          | 说明                        |
+| ------------- | ------- | ----------------------------- | --------------------------- |
+| id            | INTEGER | PRIMARY KEY, AUTOINCREMENT    | 数据源 ID                   |
+| name          | TEXT    | NOT NULL                      | 数据源名称                  |
+| type          | TEXT    | NOT NULL                      | 数据源类型：rest, rss, html |
+| source_type   | TEXT    | NOT NULL, DEFAULT 'api'       | 来源类型：rss, api, topic   |
+| url           | TEXT    | NOT NULL                      | API/源地址                  |
+| method        | TEXT    | DEFAULT 'GET'                 | 请求方法：GET, POST         |
+| headers       | TEXT    | -                             | 自定义请求头（JSON 字符串） |
+| body          | TEXT    | -                             | POST 请求体                 |
+| parser        | TEXT    | -                             | 解析器标识                  |
+| enabled       | INTEGER | NOT NULL, DEFAULT 1           | 是否启用：1=启用, 0=禁用    |
+| last_fetch_at | INTEGER | -                             | 上次抓取时间（时间戳）      |
+| last_error    | TEXT    | -                             | 上次错误信息                |
+| description   | TEXT    | -                             | 描述                        |
+| created_at    | INTEGER | NOT NULL, DEFAULT unixepoch() | 创建时间（时间戳）          |
+| updated_at    | INTEGER | NOT NULL, DEFAULT unixepoch() | 更新时间（时间戳）          |
 
 **索引：**
 
@@ -134,7 +133,6 @@ export const dataSources = sqliteTable('data_sources', {
   body: text('body'),
   parser: text('parser'),
   enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
-  fetchInterval: integer('fetch_interval').notNull().default(30),
   lastFetchAt: integer('last_fetch_at', { mode: 'timestamp' }),
   lastError: text('last_error'),
   description: text('description'),
@@ -420,15 +418,16 @@ export const systemConfig = sqliteTable('system_config', {
 
 **预置配置项：**
 
-| 配置键               | 说明             | 默认值 |
-| -------------------- | ---------------- | ------ |
-| invite_code          | 注册邀请码       | ''     |
-| registration_enabled | 注册开关         | true   |
-| fetch_interval       | 抓取间隔（分钟） | 30     |
-| auto_fetch_enabled   | 自动抓取开关     | false  |
-| ai_api_key           | AI API 密钥      | ''     |
-| ai_base_url          | AI API 基础地址  | ''     |
-| ai_model             | AI 模型名称      | ''     |
+| 配置键               | 说明                 | 默认值 |
+| -------------------- | -------------------- | ------ |
+| invite_code          | 注册邀请码           | ''     |
+| registration_enabled | 注册开关             | true   |
+| rss_fetch_interval   | RSS 刷新间隔（分钟） | 30     |
+| api_fetch_interval   | API 刷新间隔（分钟） | 30     |
+| auto_fetch_enabled   | 自动抓取开关         | false  |
+| ai_api_key           | AI API 密钥          | ''     |
+| ai_base_url          | AI API 基础地址      | ''     |
+| ai_model             | AI 模型名称          | ''     |
 
 ---
 

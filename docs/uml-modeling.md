@@ -154,7 +154,6 @@
 │ - updatedAt: Date   │       │ - body: string      │       │ - publishedAt: Date │
 ├─────────────────────┤       │ - parser: string    │       │ - fetchedAt: Date   │
 │ + register()        │       │ - enabled: boolean  │       │ - hotScore: number  │
-│ + login()           │       │ - fetchInterval: number│    │ - metadata: string  │
 │ + getProfile()      │       │ - lastFetchAt: Date │       │ - sourceType: enum  │
 │ + updateProfile()   │       │ - lastError: string │       │ - status: enum      │
 │ + changePassword()  │       │ - description: string│      │ - createdAt: Date   │

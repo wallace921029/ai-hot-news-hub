@@ -3,12 +3,17 @@ import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { systemConfig } from '../../db/schema.js'
 import { eq } from 'drizzle-orm'
-import { getAutoFetchEnabled, setAutoFetchEnabled } from '../../scheduler/index.js'
+import {
+  getAutoFetchEnabled,
+  setAutoFetchEnabled,
+  applyFetchIntervals,
+} from '../../scheduler/index.js'
 
 const configSchema = z.object({
   inviteCode: z.string().optional(),
   registrationEnabled: z.boolean().optional(),
-  fetchInterval: z.number().min(5).max(1440).optional(),
+  rssFetchInterval: z.number().min(5).max(1440).optional(),
+  apiFetchInterval: z.number().min(5).max(1440).optional(),
   aiApiKey: z.string().optional(),
   aiBaseUrl: z.string().optional(),
   aiModel: z.string().optional(),
@@ -27,7 +32,8 @@ export async function configRoutes(app: FastifyInstance) {
     return {
       inviteCode: configMap.invite_code || '',
       registrationEnabled: configMap.registration_enabled ?? true,
-      fetchInterval: configMap.fetch_interval || 30,
+      rssFetchInterval: configMap.rss_fetch_interval || 30,
+      apiFetchInterval: configMap.api_fetch_interval || 30,
       autoFetchEnabled: getAutoFetchEnabled(),
       aiApiKey: configMap.ai_api_key || '',
       aiBaseUrl: configMap.ai_base_url || '',
@@ -51,9 +57,13 @@ export async function configRoutes(app: FastifyInstance) {
         key: 'registration_enabled',
         value: JSON.stringify(data.registrationEnabled),
       },
-      data.fetchInterval !== undefined && {
-        key: 'fetch_interval',
-        value: JSON.stringify(data.fetchInterval),
+      data.rssFetchInterval !== undefined && {
+        key: 'rss_fetch_interval',
+        value: JSON.stringify(data.rssFetchInterval),
+      },
+      data.apiFetchInterval !== undefined && {
+        key: 'api_fetch_interval',
+        value: JSON.stringify(data.apiFetchInterval),
       },
       data.aiApiKey !== undefined &&
         data.aiApiKey !== '' && { key: 'ai_api_key', value: JSON.stringify(data.aiApiKey) },
@@ -85,6 +95,9 @@ export async function configRoutes(app: FastifyInstance) {
         }
       }
     }
+
+    // 保存后立即生效（内存中的调度间隔同步更新）
+    applyFetchIntervals(data.rssFetchInterval, data.apiFetchInterval)
 
     return { success: true }
   })

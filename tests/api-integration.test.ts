@@ -184,7 +184,6 @@ describe('Admin Sources API', () => {
         method: 'GET',
         parser: 'test',
         enabled: true,
-        fetchInterval: 30,
         description: 'Test source for integration tests',
       },
       adminToken
@@ -316,11 +315,12 @@ describe('Admin Config API', () => {
     assert.equal(res.status, 200)
     assert.ok('inviteCode' in (res.data as any))
     assert.ok('registrationEnabled' in (res.data as any))
-    assert.ok('fetchInterval' in (res.data as any))
+    assert.ok('rssFetchInterval' in (res.data as any))
+    assert.ok('apiFetchInterval' in (res.data as any))
   })
 
   it('PUT /admin/config — update config', async () => {
-    const res = await api('PUT', '/admin/config', { fetchInterval: 60 }, adminToken)
+    const res = await api('PUT', '/admin/config', { rssFetchInterval: 60 }, adminToken)
     assert.equal(res.status, 200)
   })
 

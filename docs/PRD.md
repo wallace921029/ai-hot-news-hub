@@ -112,7 +112,6 @@ interface DataSource {
   body?: string // POST 请求体
   parser?: string // 解析器标识（HTML/XML 解析用）
   enabled: boolean // 是否启用
-  fetchInterval: number // 抓取间隔（分钟）
   lastFetchAt?: Date // 上次抓取时间
   description?: string // 描述
 }
@@ -387,7 +386,6 @@ interface AIConfig {
 - body: 请求体
 - parser: 解析器标识
 - enabled: 是否启用
-- fetch_interval: 抓取间隔（分钟）
 - last_fetch_at: 上次抓取时间
 - last_error: 上次错误信息
 - description: 描述
@@ -632,7 +630,7 @@ ai-hot-news-hub/
 
 ### 11.2 可靠性
 
-- 数据抓取失败自动重试（最多 3 次）
+- 数据抓取失败自动重试（最多尝试 3 次，退避 3s / 10s）
 - AI 处理失败自动重试（最多 2 次）
 - 错误日志记录，便于排查
 
