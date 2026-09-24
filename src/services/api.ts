@@ -198,13 +198,16 @@ class ApiService {
   }
 
   async createCommunityComment(postId: number, content: string, parentCommentId?: number) {
-    return this.request<{ success: boolean; comment: any; aiQuotaExhausted: boolean }>(
-      `/community/posts/${postId}/comments`,
-      {
-        method: 'POST',
-        body: parentCommentId ? { content, parentCommentId } : { content },
-      }
-    )
+    return this.request<{
+      success: boolean
+      comment: any
+      aiQuotaExhausted: boolean
+      aiPending: boolean
+      agentUserId: number | null
+    }>(`/community/posts/${postId}/comments`, {
+      method: 'POST',
+      body: parentCommentId ? { content, parentCommentId } : { content },
+    })
   }
 
   async deleteCommunityComment(id: number) {
@@ -277,18 +280,26 @@ class ApiService {
     )
   }
 
-  async getMomentComments(momentId: number, page = 1, pageSize = 20) {
-    return this.request<any>(`/moments/${momentId}/comments?page=${page}&pageSize=${pageSize}`)
+  async getMomentComments(momentId: number, page = 1, pageSize = 20, order?: 'asc' | 'desc') {
+    const params = new URLSearchParams({
+      page: String(page),
+      pageSize: String(pageSize),
+    })
+    if (order) params.set('order', order)
+    return this.request<any>(`/moments/${momentId}/comments?${params.toString()}`)
   }
 
   async createMomentComment(momentId: number, content: string) {
-    return this.request<{ success: boolean; comment: any; aiQuotaExhausted: boolean }>(
-      `/moments/${momentId}/comments`,
-      {
-        method: 'POST',
-        body: { content },
-      }
-    )
+    return this.request<{
+      success: boolean
+      comment: any
+      aiQuotaExhausted: boolean
+      aiPending: boolean
+      agentUserId: number | null
+    }>(`/moments/${momentId}/comments`, {
+      method: 'POST',
+      body: { content },
+    })
   }
 
   async deleteMomentComment(id: number) {

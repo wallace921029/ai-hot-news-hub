@@ -16,13 +16,41 @@ import { chatCompletion, getAiChatConfig, getSystemConfig } from './ai.js'
 export const AI_AGENT_USERNAME = 'ai_agent'
 export const AI_AGENT_EMAIL = 'ai-agent@localhost'
 export const AI_AGENT_AVATAR = 'adventurer:ai-agent'
+/** 与前端 src/lib/avatar.ts 的 avatarStyles 保持一致 */
+const AVATAR_STYLES = [
+  'adventurer',
+  'adventurerNeutral',
+  'avataaars',
+  'bigSmile',
+  'bottts',
+  'croodles',
+  'funEmoji',
+  'lorelei',
+  'micah',
+  'notionists',
+  'openPeeps',
+  'toonHead',
+] as const
+
+/** 校验 style:seed 头像格式，不合法返回 null */
+export function normalizeAgentAvatar(v: unknown): string | null {
+  if (typeof v !== 'string') return null
+  const idx = v.indexOf(':')
+  if (idx <= 0) return null
+  const style = v.slice(0, idx)
+  const seed = v.slice(idx + 1)
+  if (!(AVATAR_STYLES as readonly string[]).includes(style)) return null
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(seed)) return null
+  return `${style}:${seed}`
+}
 
 export const DEFAULT_NICKNAME = '润土'
 export const DEFAULT_PERSONA =
   '你是"润土"，赛博瓜田的土著瓜友，说话带点闰土式土味幽默，偶尔掉一句《故乡》梗；回复紧扣对方的话，不说教、不复读。'
-export const DEFAULT_MAX_TOKENS = 300
 export const DEFAULT_TEMPERATURE = 0.8
 export const DEFAULT_DAILY_LIMIT = 20
+/** 调用超时默认 120 秒（思考模型慢，后台任务等得起） */
+export const DEFAULT_TIMEOUT_SECONDS = 120
 
 export type AgentTargetType = 'moment' | 'post' | 'moment_comment' | 'comment' | 'news_comment'
 
@@ -30,33 +58,89 @@ export interface AgentConfig {
   enabled: boolean
   nickname: string
   persona: string
-  maxTokens: number
+  /** null = 不传，不限制回复长度 */
+  maxTokens: number | null
   temperature: number
+  /** null = 不传，使用模型默认 */
+  topP: number | null
+  frequencyPenalty: number | null
+  presencePenalty: number | null
+  /** null = 不传；enabled/disabled（注意 GLM-5.3 系强制思考，disabled 会 400） */
+  thinking: 'enabled' | 'disabled' | null
+  /** null = 不传；GLM-5.3 系仅 max/high/low，OpenAI o 系 low/medium/high */
+  reasoningEffort: string | null
+  /** 头像 style:seed（恒合法，非法回退默认） */
+  avatar: string
+  /** 单次调用超时（秒） */
+  timeoutSeconds: number
   throttleEnabled: boolean
   dailyLimit: number
 }
 
+function asOptionalNumber(v: unknown, min: number, max: number): number | null {
+  return typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max ? v : null
+}
+
+const REASONING_EFFORTS = ['minimal', 'none', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+
 export async function getAgentConfig(): Promise<AgentConfig> {
-  const [enabled, nickname, persona, maxTokens, temperature, throttleEnabled, dailyLimit] =
-    await Promise.all([
-      getSystemConfig('ai_agent_enabled', false),
-      getSystemConfig('ai_agent_nickname', DEFAULT_NICKNAME),
-      getSystemConfig('ai_agent_persona', DEFAULT_PERSONA),
-      getSystemConfig('ai_agent_max_tokens', DEFAULT_MAX_TOKENS),
-      getSystemConfig('ai_agent_temperature', DEFAULT_TEMPERATURE),
-      getSystemConfig('ai_agent_throttle_enabled', true),
-      getSystemConfig('ai_agent_daily_limit', DEFAULT_DAILY_LIMIT),
-    ])
+  const [
+    enabled,
+    nickname,
+    persona,
+    maxTokens,
+    temperature,
+    topP,
+    frequencyPenalty,
+    presencePenalty,
+    thinking,
+    reasoningEffort,
+    avatar,
+    timeoutSeconds,
+    throttleEnabled,
+    dailyLimit,
+  ] = await Promise.all([
+    getSystemConfig('ai_agent_enabled', false),
+    getSystemConfig('ai_agent_nickname', DEFAULT_NICKNAME),
+    getSystemConfig('ai_agent_persona', DEFAULT_PERSONA),
+    getSystemConfig<number | null>('ai_agent_max_tokens', null),
+    getSystemConfig('ai_agent_temperature', DEFAULT_TEMPERATURE),
+    getSystemConfig<number | null>('ai_agent_top_p', null),
+    getSystemConfig<number | null>('ai_agent_frequency_penalty', null),
+    getSystemConfig<number | null>('ai_agent_presence_penalty', null),
+    getSystemConfig<string | null>('ai_agent_thinking', null),
+    getSystemConfig<string | null>('ai_agent_reasoning_effort', null),
+    getSystemConfig<string | null>('ai_agent_avatar', AI_AGENT_AVATAR),
+    getSystemConfig('ai_agent_timeout', DEFAULT_TIMEOUT_SECONDS),
+    getSystemConfig('ai_agent_throttle_enabled', true),
+    getSystemConfig('ai_agent_daily_limit', DEFAULT_DAILY_LIMIT),
+  ])
   return {
     enabled: enabled === true,
     nickname: typeof nickname === 'string' && nickname.trim() ? nickname.trim() : DEFAULT_NICKNAME,
     persona: typeof persona === 'string' && persona.trim() ? persona : DEFAULT_PERSONA,
     maxTokens:
-      typeof maxTokens === 'number' && maxTokens > 0 ? Math.floor(maxTokens) : DEFAULT_MAX_TOKENS,
+      typeof maxTokens === 'number' && Number.isFinite(maxTokens) && maxTokens >= 1
+        ? Math.floor(maxTokens)
+        : null,
     temperature:
       typeof temperature === 'number' && temperature >= 0 && temperature <= 2
         ? temperature
         : DEFAULT_TEMPERATURE,
+    topP: asOptionalNumber(topP, 0, 1),
+    frequencyPenalty: asOptionalNumber(frequencyPenalty, -2, 2),
+    presencePenalty: asOptionalNumber(presencePenalty, -2, 2),
+    thinking: thinking === 'enabled' || thinking === 'disabled' ? thinking : null,
+    reasoningEffort:
+      typeof reasoningEffort === 'string' &&
+      (REASONING_EFFORTS as readonly string[]).includes(reasoningEffort)
+        ? reasoningEffort
+        : null,
+    avatar: normalizeAgentAvatar(avatar) ?? AI_AGENT_AVATAR,
+    timeoutSeconds:
+      typeof timeoutSeconds === 'number' && timeoutSeconds >= 10 && timeoutSeconds <= 600
+        ? Math.floor(timeoutSeconds)
+        : DEFAULT_TIMEOUT_SECONDS,
     throttleEnabled: throttleEnabled !== false,
     dailyLimit: typeof dailyLimit === 'number' && dailyLimit >= 0 ? Math.floor(dailyLimit) : 0,
   }
@@ -81,18 +165,18 @@ export async function ensureAgentUser() {
       role: 'user',
       status: 'active',
       nickname: config.nickname,
-      avatar: AI_AGENT_AVATAR,
+      avatar: config.avatar,
     })
     .returning()
   console.log(`🤖 AI 智能体用户已创建（@${config.nickname}）`)
   return created
 }
 
-/** 管理端改名后同步 users.nickname（历史评论作者名自动跟随，无需动数据） */
-export async function syncAgentNickname(nickname: string) {
+/** 管理端改名/换头像后同步用户行（历史评论作者自动跟随，无需动数据） */
+export async function syncAgentProfile(nickname: string, avatar: string) {
   await db
     .update(users)
-    .set({ nickname, updatedAt: new Date() })
+    .set({ nickname, avatar, updatedAt: new Date() })
     .where(eq(users.username, AI_AGENT_USERNAME))
 }
 
@@ -234,7 +318,7 @@ async function bumpMomentCommentCount(momentId: number) {
 const slice = (s: string | null | undefined, n = 2000) => (s ?? '').slice(0, n)
 
 function systemPrompt(config: AgentConfig): string {
-  return `${config.persona}\n\n约束：直接输出回复正文，不要加"润土："之类前缀；内容里若有"@xxx"字样那是在叫你，忽略它直接回复；紧扣对方的话。`
+  return `${config.persona}\n\n约束：直接输出回复正文，不要加"润土："之类前缀；内容里若有"@xxx"字样那是在叫你，忽略它直接回复；紧扣对方的话。表情规则：只允许使用 Unicode 表情符号（如🎉😄🍉）作为表情包，严禁输出 [xxx] 样式的方括号表情代码。`
 }
 
 /** 被 @ 后的后台回复任务（fire-and-forget；失败只记日志） */
@@ -263,6 +347,12 @@ export function runMentionReply(task: {
       user: userText,
       maxTokens: task.config.maxTokens,
       temperature: task.config.temperature,
+      topP: task.config.topP,
+      frequencyPenalty: task.config.frequencyPenalty,
+      presencePenalty: task.config.presencePenalty,
+      thinking: task.config.thinking,
+      reasoningEffort: task.config.reasoningEffort,
+      timeoutMs: task.config.timeoutSeconds * 1000,
     })
 
     if (task.targetType === 'comment' && task.postId != null) {
@@ -333,6 +423,12 @@ export function runProactiveReply(task: {
       user: userText,
       maxTokens: task.config.maxTokens,
       temperature: task.config.temperature,
+      topP: task.config.topP,
+      frequencyPenalty: task.config.frequencyPenalty,
+      presencePenalty: task.config.presencePenalty,
+      thinking: task.config.thinking,
+      reasoningEffort: task.config.reasoningEffort,
+      timeoutMs: task.config.timeoutSeconds * 1000,
     })
 
     if (task.targetType === 'post' && task.postId != null) {

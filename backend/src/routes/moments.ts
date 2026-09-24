@@ -155,9 +155,11 @@ export async function momentRoutes(app: FastifyInstance) {
       .returning()
 
     // AI 智能体：新动态主动评论一条
+    let aiPending = false
     const proactive = await checkProactiveAllowed(request.user.userId)
     if (proactive.ok && proactive.config) {
       const logId = await reserveProactiveLog('moment', moment.id, request.user.userId)
+      aiPending = true
       runProactiveReply({
         logId,
         config: proactive.config,
@@ -173,6 +175,7 @@ export async function momentRoutes(app: FastifyInstance) {
     return {
       success: true,
       moment: { ...moment, images: moment.images ? JSON.parse(moment.images as string) : [] },
+      aiPending,
     }
   })
 
@@ -288,6 +291,8 @@ export async function momentRoutes(app: FastifyInstance) {
     const page = Math.max(1, parseInt(query.page) || 1)
     const pageSize = Math.min(50, Math.max(1, parseInt(query.pageSize) || 20))
     const offset = (page - 1) * pageSize
+    // order=desc 取最新（预览最新一条用）；默认 asc 时间正序
+    const order = query.order === 'desc' ? desc(momentComments.id) : asc(momentComments.id)
 
     const [moment] = await db
       .select()
@@ -317,7 +322,7 @@ export async function momentRoutes(app: FastifyInstance) {
       .from(momentComments)
       .leftJoin(users, eq(momentComments.userId, users.id))
       .where(eq(momentComments.momentId, momentId))
-      .orderBy(asc(momentComments.id))
+      .orderBy(order)
       .limit(pageSize)
       .offset(offset)
 
@@ -393,11 +398,15 @@ export async function momentRoutes(app: FastifyInstance) {
 
     // AI 智能体：评论里 @ 则后台回复一条；超额则同步提示
     let aiQuotaExhausted = false
+    let aiPending = false
+    let agentUserId: number | null = null
     const nickname = await getAgentNickname()
     if (containsMention(parsed.data.content, nickname)) {
       const check = await checkMentionAllowed(request.user.userId)
       if (check.ok && check.config) {
         const logId = await reserveMentionLog('moment_comment', comment.id, request.user.userId)
+        aiPending = true
+        agentUserId = check.agentId
         runMentionReply({
           logId,
           config: check.config,
@@ -415,7 +424,7 @@ export async function momentRoutes(app: FastifyInstance) {
       }
     }
 
-    return { success: true, comment, aiQuotaExhausted }
+    return { success: true, comment, aiQuotaExhausted, aiPending, agentUserId }
   })
 
   // 删除动态评论（本人或管理员）

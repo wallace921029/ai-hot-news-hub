@@ -27,8 +27,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Pagination } from '@/components/Pagination'
 import { UserAvatar } from '@/components/UserAvatar'
+import { CommentList } from '@/components/CommentList'
 import { motion, AnimatePresence } from 'framer-motion'
 import { pageTransition } from '@/lib/animations'
 import {
@@ -37,8 +37,6 @@ import {
   Heart,
   Loader2,
   MessageSquare,
-  MessagesSquare,
-  Reply,
   Send,
   Pencil,
   Link2,
@@ -58,6 +56,7 @@ import type { EmojiData } from 'emoji-picker-react/dist/types/exposedTypes'
 const emojiZh = emojiZhData as unknown as EmojiData
 import { toast } from 'sonner'
 import DOMPurify from 'dompurify'
+import { useAiReplyPoll, isFreshContent } from '@/hooks/useAiReplyPoll'
 import { cleanPostHtml, linkifyUploadImages, postExcerpt } from '@/lib/post'
 import { useTranslation } from 'react-i18next'
 import type { CommunityComment } from '@/types'
@@ -101,6 +100,27 @@ export function PostDetailPage() {
     queryFn: () => api.getCommunityComments(postId, commentPage, COMMENT_PAGE_SIZE),
     enabled: Number.isFinite(postId) && postId > 0,
   })
+  const { watchAiReply, stopAiReplyWatch } = useAiReplyPoll()
+
+  // 新帖等欢迎语：帖子新鲜且尚无评论时，定向等第一条评论出现（抓到即停）
+  const isFreshPost = isFreshContent(post?.createdAt)
+  useEffect(() => {
+    if (!isFreshPost || commentsLoading || !commentsData) return
+    if ((commentsData.items?.length || 0) > 0) return
+    watchAiReply({
+      queryKey: ['community-comments', postId, commentPage],
+      isArrived: (cached: unknown) => ((cached as { items?: unknown[] })?.items || []).length > 0,
+    })
+    return () => stopAiReplyWatch()
+  }, [
+    isFreshPost,
+    commentsLoading,
+    commentsData,
+    postId,
+    commentPage,
+    watchAiReply,
+    stopAiReplyWatch,
+  ])
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ['community-post', postId] })
@@ -127,21 +147,75 @@ export function PostDetailPage() {
   const createComment = useMutation({
     mutationFn: () =>
       api.createCommunityComment(postId, commentInput.trim(), replyTarget?.parentId ?? undefined),
-    onMutate: () => setSendState('sending'),
+    onMutate: async () => {
+      setSendState('sending')
+      const queryKey = ['community-comments', postId, commentPage]
+      await queryClient.cancelQueries({ queryKey })
+      const prev = queryClient.getQueryData(queryKey)
+      const parentId = replyTarget?.parentId ?? null
+      const temp: CommunityComment = {
+        id: -Date.now(),
+        postId,
+        userId: user?.id ?? 0,
+        parentCommentId: parentId,
+        content: commentInput.trim(),
+        likeCount: 0,
+        likedByMe: false,
+        createdAt: new Date().toISOString(),
+        author: user
+          ? {
+              id: user.id,
+              username: user.username,
+              nickname: user.nickname ?? null,
+              avatar: user.avatar ?? null,
+            }
+          : null,
+        replies: [],
+      }
+      queryClient.setQueryData(queryKey, (old: any) => {
+        if (!old) return old
+        if (parentId) {
+          return {
+            ...old,
+            items: (old.items || []).map((it: any) =>
+              it.id === parentId ? { ...it, replies: [...(it.replies || []), temp] } : it
+            ),
+          }
+        }
+        return { ...old, items: [...(old.items || []), temp] }
+      })
+      return { prev, queryKey }
+    },
     onSuccess: (data) => {
       toast.success(t('community.commentSuccess'))
       if (data?.aiQuotaExhausted) toast.warning(t('ai.quotaExhausted'))
       setCommentInput('')
-      if (!replyTarget) setCommentPage(1)
       setReplyTarget(null)
       setEmojiOpen(false)
       setSendState('sent')
       invalidateAll()
+      // @ 了智能体且后台已接单：定向轮询等回复出现（抓到即停，无感）
+      if (data?.aiPending && data?.agentUserId && data?.comment?.id) {
+        const myId = data.comment.id as number
+        const agentId = data.agentUserId as number
+        watchAiReply({
+          queryKey: ['community-comments', postId, commentPage],
+          isArrived: (cached: unknown) => {
+            const items = (cached as { items?: CommunityComment[] })?.items || []
+            return items.some(
+              (c) =>
+                (c.id > myId && c.author?.id === agentId) ||
+                (c.replies || []).some((r) => r.id > myId && r.author?.id === agentId)
+            )
+          },
+        })
+      }
       // 绿勾 1.2s 后自动复位
       setTimeout(() => setSendState('idle'), 1200)
     },
-    onError: (e: Error) => {
+    onError: (e: Error, _v, context) => {
       setSendState('idle')
+      if (context?.prev) queryClient.setQueryData(context.queryKey, context.prev)
       toast.error(e.message || t('community.commentFailed'))
     },
   })
@@ -422,197 +496,25 @@ export function PostDetailPage() {
               </Badge>
             </h2>
 
-            {commentsLoading ? (
-              <div className="space-y-4 mt-4">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="flex gap-3">
-                    <Skeleton className="h-8 w-8 rounded-full shrink-0" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-3 w-1/4" />
-                      <Skeleton className="h-4 w-full" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : !commentsData?.items.length ? (
-              <div className="text-center py-10">
-                <MessagesSquare className="w-10 h-10 text-muted-foreground/25 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">{t('community.noComments')}</p>
-              </div>
-            ) : (
-              <div className="mt-2">
-                {commentsData.items.map((comment: CommunityComment, index: number) => {
-                  const name = comment.author?.nickname?.trim() || comment.author?.username || '?'
-                  const canDelete = comment.userId === user?.id || isAdmin
-                  const isAuthor = comment.userId === post.userId
-                  const floor = (commentPage - 1) * COMMENT_PAGE_SIZE + index + 1
-                  const replies = comment.replies || []
-                  return (
-                    <motion.div
-                      key={comment.id}
-                      initial={{ opacity: 0, y: -10, scale: 0.99 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                      className="flex gap-3 py-4 border-b last:border-0 hover:bg-muted/40 -mx-3 px-3 rounded-lg transition-colors"
-                    >
-                      <UserAvatar
-                        avatar={comment.author?.avatar}
-                        username={comment.author?.username || '?'}
-                        size={32}
-                        className="mt-0.5 shrink-0 self-start"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="font-medium text-foreground/85">{name}</span>
-                          {isAuthor && (
-                            <Badge
-                              variant="outline"
-                              className="px-1.5 py-0 text-[10px] leading-4 text-amber-600 border-amber-300 dark:text-amber-400 dark:border-amber-700"
-                            >
-                              {t('community.originalPoster')}
-                            </Badge>
-                          )}
-                          <span className="text-muted-foreground">
-                            {formatTime(comment.createdAt)}
-                          </span>
-                          <span className="ml-auto tabular-nums text-muted-foreground/70 shrink-0">
-                            {t('community.floor', { n: floor })}
-                          </span>
-                        </div>
-                        <p className="text-sm text-foreground/90 mt-1.5 whitespace-pre-wrap leading-relaxed">
-                          {comment.content}
-                        </p>
-                        <div className="flex items-center gap-1 mt-1.5">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className={`h-7 px-2 text-xs rounded-full ${comment.likedByMe ? 'text-rose-500' : 'text-muted-foreground'}`}
-                            onClick={() => toggleCommentLike.mutate(comment.id)}
-                          >
-                            <Heart
-                              className={`w-3.5 h-3.5 mr-1 ${comment.likedByMe ? 'fill-current' : ''}`}
-                            />
-                            {comment.likeCount > 0 ? comment.likeCount : ''}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-xs rounded-full text-muted-foreground"
-                            onClick={() => {
-                              setReplyTarget({ parentId: comment.id, username: name })
-                              textareaRef.current?.focus()
-                            }}
-                          >
-                            <Reply className="w-3.5 h-3.5 mr-1" />
-                            {t('community.reply')}
-                          </Button>
-                          {canDelete && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-xs rounded-full text-muted-foreground/70 hover:text-destructive"
-                              onClick={() => setPendingDeleteCommentId(comment.id)}
-                            >
-                              <Trash2 className="w-3.5 h-3.5 mr-1" />
-                              {t('common.delete')}
-                            </Button>
-                          )}
-                        </div>
-                        {replies.length > 0 && (
-                          <div className="mt-3 space-y-3 rounded-xl bg-muted/40 p-3">
-                            {replies.map((reply) => {
-                              const rName =
-                                reply.author?.nickname?.trim() || reply.author?.username || '?'
-                              const rCanDelete = reply.userId === user?.id || isAdmin
-                              const rIsAuthor = reply.userId === post.userId
-                              return (
-                                <div key={reply.id} className="flex gap-2">
-                                  <UserAvatar
-                                    avatar={reply.author?.avatar}
-                                    username={reply.author?.username || '?'}
-                                    size={24}
-                                    className="mt-0.5 shrink-0 self-start"
-                                  />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1.5 text-xs">
-                                      <span className="font-medium text-foreground/85">
-                                        {rName}
-                                      </span>
-                                      {rIsAuthor && (
-                                        <Badge
-                                          variant="outline"
-                                          className="px-1 py-0 text-[10px] leading-3 text-amber-600 border-amber-300 dark:text-amber-400 dark:border-amber-700"
-                                        >
-                                          {t('community.originalPoster')}
-                                        </Badge>
-                                      )}
-                                      <span className="text-muted-foreground">
-                                        {formatTime(reply.createdAt)}
-                                      </span>
-                                    </div>
-                                    <p className="text-sm text-foreground/85 mt-1 whitespace-pre-wrap leading-relaxed">
-                                      <span className="text-primary font-medium">@{name} </span>
-                                      {reply.content}
-                                    </p>
-                                    <div className="flex items-center gap-1 mt-1">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className={`h-6 px-2 text-xs rounded-full ${reply.likedByMe ? 'text-rose-500' : 'text-muted-foreground'}`}
-                                        onClick={() => toggleCommentLike.mutate(reply.id)}
-                                      >
-                                        <Heart
-                                          className={`w-3 h-3 mr-1 ${reply.likedByMe ? 'fill-current' : ''}`}
-                                        />
-                                        {reply.likeCount > 0 ? reply.likeCount : ''}
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 px-2 text-xs rounded-full text-muted-foreground"
-                                        onClick={() => {
-                                          setReplyTarget({ parentId: comment.id, username: rName })
-                                          textareaRef.current?.focus()
-                                        }}
-                                      >
-                                        <Reply className="w-3 h-3 mr-1" />
-                                        {t('community.reply')}
-                                      </Button>
-                                      {rCanDelete && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-6 px-2 text-xs rounded-full text-muted-foreground/70 hover:text-destructive"
-                                          onClick={() => setPendingDeleteCommentId(reply.id)}
-                                        >
-                                          <Trash2 className="w-3 h-3 mr-1" />
-                                          {t('common.delete')}
-                                        </Button>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )
-                })}
-              </div>
-            )}
-
-            {commentsData && commentsData.pagination.totalPages > 1 && (
-              <div className="mt-2">
-                <Pagination
-                  page={commentPage}
-                  totalPages={commentsData.pagination.totalPages}
-                  total={commentsData.pagination.total}
-                  onPageChange={setCommentPage}
-                />
-              </div>
-            )}
+            <CommentList
+              loading={commentsLoading}
+              items={commentsData?.items || []}
+              emptyText={t('community.noComments')}
+              page={commentPage}
+              pageSize={COMMENT_PAGE_SIZE}
+              totalPages={commentsData?.pagination.totalPages || 0}
+              total={commentsData?.pagination.total || 0}
+              onPageChange={setCommentPage}
+              currentUserId={user?.id}
+              isAdmin={isAdmin}
+              originalPosterId={post?.userId}
+              onToggleLike={(id) => toggleCommentLike.mutate(id)}
+              onReply={(parentId, username) => {
+                setReplyTarget({ parentId, username })
+                textareaRef.current?.focus()
+              }}
+              onDelete={(id) => setPendingDeleteCommentId(id)}
+            />
 
             {/* 发表评论（底部输入框，支持回复 @） */}
             <div className="flex gap-3 mt-6">

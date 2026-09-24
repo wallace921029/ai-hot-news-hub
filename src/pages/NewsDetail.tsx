@@ -16,8 +16,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Pagination } from '@/components/Pagination'
 import { UserAvatar } from '@/components/UserAvatar'
+import { CommentList } from '@/components/CommentList'
 import { motion, AnimatePresence } from 'framer-motion'
 import { pageTransition } from '@/lib/animations'
 import {
@@ -31,13 +31,13 @@ import {
   BarChart3,
   Info,
   MessageSquare,
-  Reply,
   Send,
-  Trash2,
+  Loader2,
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
+import { useAiReplyPoll } from '@/hooks/useAiReplyPoll'
 import DOMPurify from 'dompurify'
 import { useEffect, useRef, useState } from 'react'
 import type { NewsComment } from '@/types'
@@ -85,22 +85,76 @@ export function NewsDetailPage() {
     queryFn: () => api.getNewsComments(newsId, commentPage, COMMENT_PAGE_SIZE),
     enabled: !!newsId,
   })
+  const { watchAiReply } = useAiReplyPoll()
 
   const createComment = useMutation({
     mutationFn: () =>
       api.createNewsComment(newsId, commentInput.trim(), replyTarget?.parentId ?? undefined),
-    onMutate: () => setSending(true),
+    onMutate: async () => {
+      setSending(true)
+      const queryKey = ['news-comments', newsId, commentPage]
+      await queryClient.cancelQueries({ queryKey })
+      const prev = queryClient.getQueryData(queryKey)
+      const parentId = replyTarget?.parentId ?? null
+      const temp: NewsComment = {
+        id: -Date.now(),
+        newsItemId: newsId,
+        userId: user?.id ?? 0,
+        parentCommentId: parentId,
+        content: commentInput.trim(),
+        likeCount: 0,
+        createdAt: new Date().toISOString(),
+        author: user
+          ? {
+              id: user.id,
+              username: user.username,
+              nickname: user.nickname ?? null,
+              avatar: user.avatar ?? null,
+            }
+          : null,
+        replies: [],
+      }
+      queryClient.setQueryData(queryKey, (old: any) => {
+        if (!old) return old
+        if (parentId) {
+          return {
+            ...old,
+            items: (old.items || []).map((it: any) =>
+              it.id === parentId ? { ...it, replies: [...(it.replies || []), temp] } : it
+            ),
+          }
+        }
+        return { ...old, items: [...(old.items || []), temp] }
+      })
+      return { prev, queryKey }
+    },
     onSuccess: (data) => {
       toast.success(t('newsDetail.commentSuccess'))
       if (data?.aiQuotaExhausted) toast.warning(t('ai.quotaExhausted'))
       setCommentInput('')
       setReplyTarget(null)
-      if (commentPage !== 1) setCommentPage(1)
       setSending(false)
       queryClient.invalidateQueries({ queryKey: ['news-comments', newsId] })
+      // @ 了智能体且后台已接单：定向轮询等回复出现（抓到即停，无感）
+      if (data?.aiPending && data?.agentUserId && data?.comment?.id) {
+        const myId = data.comment.id as number
+        const agentId = data.agentUserId as number
+        watchAiReply({
+          queryKey: ['news-comments', newsId, commentPage],
+          isArrived: (cached: unknown) => {
+            const items = (cached as { items?: NewsComment[] })?.items || []
+            return items.some(
+              (c) =>
+                (c.id > myId && c.author?.id === agentId) ||
+                (c.replies || []).some((r) => r.id > myId && r.author?.id === agentId)
+            )
+          },
+        })
+      }
     },
-    onError: (e: Error) => {
+    onError: (e: Error, _v, context) => {
       setSending(false)
+      if (context?.prev) queryClient.setQueryData(context.queryKey, context.prev)
       toast.error(e.message || t('newsDetail.commentFailed'))
     },
   })
@@ -286,140 +340,35 @@ export function NewsDetailPage() {
         </div>
 
         {/* Comments */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 shrink-0" />
+        <Card id="comments" className="overflow-hidden shadow-sm scroll-mt-4">
+          <CardContent className="p-6 md:p-8">
+            <h2 className="flex items-center gap-2 font-semibold text-foreground">
+              <MessageSquare className="w-5 h-5 text-primary shrink-0" />
               {t('newsDetail.comments')}
-              {commentsData?.pagination && (
-                <span className="text-xs font-normal text-muted-foreground">
-                  {commentsData.pagination.total}
-                </span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {!commentsData?.items?.length ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                {t('newsDetail.noComments')}
-              </p>
-            ) : (
-              <div>
-                {commentsData.items.map((comment: NewsComment, index: number) => {
-                  const name = comment.author?.nickname?.trim() || comment.author?.username || '?'
-                  const canDelete = comment.userId === user?.id || isAdmin
-                  const floor = (commentPage - 1) * COMMENT_PAGE_SIZE + index + 1
-                  const replies = comment.replies || []
-                  return (
-                    <div key={comment.id} className="flex gap-3 py-4 border-b last:border-0">
-                      <UserAvatar
-                        avatar={comment.author?.avatar}
-                        username={comment.author?.username || '?'}
-                        size={32}
-                        className="mt-0.5 shrink-0 self-start"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="font-medium text-foreground/85">{name}</span>
-                          <span className="text-muted-foreground">
-                            {comment.createdAt && new Date(comment.createdAt).toLocaleString()}
-                          </span>
-                          <span className="ml-auto tabular-nums text-muted-foreground/70 shrink-0">
-                            {t('community.floor', { n: floor })}
-                          </span>
-                        </div>
-                        <p className="text-sm text-foreground/90 mt-1.5 whitespace-pre-wrap leading-relaxed">
-                          {comment.content}
-                        </p>
-                        <div className="flex items-center gap-1 mt-1.5">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-xs rounded-full text-muted-foreground"
-                            onClick={() => {
-                              setReplyTarget({ parentId: comment.id, username: name })
-                              textareaRef.current?.focus()
-                            }}
-                          >
-                            <Reply className="w-3.5 h-3.5 mr-1" />
-                            {t('newsDetail.reply')}
-                          </Button>
-                          {canDelete && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-xs rounded-full text-muted-foreground/70 hover:text-destructive"
-                              onClick={() => setPendingDeleteCommentId(comment.id)}
-                            >
-                              <Trash2 className="w-3.5 h-3.5 mr-1" />
-                              {t('common.delete')}
-                            </Button>
-                          )}
-                        </div>
-                        {replies.length > 0 && (
-                          <div className="mt-3 space-y-3 rounded-xl bg-muted/40 p-3">
-                            {replies.map((reply) => {
-                              const rName =
-                                reply.author?.nickname?.trim() || reply.author?.username || '?'
-                              const rCanDelete = reply.userId === user?.id || isAdmin
-                              return (
-                                <div key={reply.id} className="flex gap-2">
-                                  <UserAvatar
-                                    avatar={reply.author?.avatar}
-                                    username={reply.author?.username || '?'}
-                                    size={24}
-                                    className="mt-0.5 shrink-0 self-start"
-                                  />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1.5 text-xs">
-                                      <span className="font-medium text-foreground/85">
-                                        {rName}
-                                      </span>
-                                      <span className="text-muted-foreground">
-                                        {reply.createdAt &&
-                                          new Date(reply.createdAt).toLocaleString()}
-                                      </span>
-                                    </div>
-                                    <p className="text-sm text-foreground/85 mt-1 whitespace-pre-wrap leading-relaxed">
-                                      <span className="text-primary font-medium">@{name} </span>
-                                      {reply.content}
-                                    </p>
-                                    {rCanDelete && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 px-2 text-xs rounded-full text-muted-foreground/70 hover:text-destructive mt-1"
-                                        onClick={() => setPendingDeleteCommentId(reply.id)}
-                                      >
-                                        <Trash2 className="w-3 h-3 mr-1" />
-                                        {t('common.delete')}
-                                      </Button>
-                                    )}
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+              <Badge variant="secondary" className="ml-1 tabular-nums">
+                {commentsData?.pagination.total ?? 0}
+              </Badge>
+            </h2>
 
-            {commentsData && commentsData.pagination.totalPages > 1 && (
-              <div className="mt-2">
-                <Pagination
-                  page={commentPage}
-                  totalPages={commentsData.pagination.totalPages}
-                  total={commentsData.pagination.total}
-                  onPageChange={setCommentPage}
-                />
-              </div>
-            )}
+            <CommentList
+              loading={!commentsData}
+              items={commentsData?.items || []}
+              emptyText={t('newsDetail.noComments')}
+              page={commentPage}
+              pageSize={COMMENT_PAGE_SIZE}
+              totalPages={commentsData?.pagination.totalPages || 0}
+              total={commentsData?.pagination.total || 0}
+              onPageChange={setCommentPage}
+              currentUserId={user?.id}
+              isAdmin={isAdmin}
+              onReply={(parentId, username) => {
+                setReplyTarget({ parentId, username })
+                textareaRef.current?.focus()
+              }}
+              onDelete={(id) => setPendingDeleteCommentId(id)}
+            />
 
-            {/* Composer */}
+            {/* Composer（按钮内置右下角，与议事厅对齐） */}
             <div className="flex gap-3 mt-6">
               <UserAvatar
                 avatar={user?.avatar}
@@ -427,7 +376,7 @@ export function NewsDetailPage() {
                 size={32}
                 className="mt-1 shrink-0 self-start"
               />
-              <div className="flex-1">
+              <div className="flex-1 relative">
                 {replyTarget && (
                   <div className="flex items-center gap-2 mb-2 text-xs">
                     <span className="text-muted-foreground">
@@ -458,12 +407,22 @@ export function NewsDetailPage() {
                       createComment.mutate()
                     }
                   }}
-                  className="flex min-h-[96px] w-full rounded-xl border border-input bg-muted/40 px-3.5 py-2.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:bg-background transition-colors disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+                  className="flex min-h-[96px] w-full rounded-xl border border-input bg-muted/40 px-3.5 py-2.5 pb-12 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:bg-background transition-colors disabled:cursor-not-allowed disabled:opacity-50 resize-y"
                 />
-                <div className="flex justify-end mt-2">
-                  <Button size="sm" disabled={!canSend} onClick={() => createComment.mutate()}>
-                    <Send className="w-3.5 h-3.5 mr-1.5" />
-                    {t('common.submit')}
+                <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1">
+                  <Button
+                    type="button"
+                    size="icon"
+                    disabled={!canSend}
+                    onClick={() => createComment.mutate()}
+                    title={t('common.submit')}
+                    className="h-8 w-8 rounded-full"
+                  >
+                    {sending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
                   </Button>
                 </div>
               </div>

@@ -220,10 +220,10 @@ export async function migrateBuiltinApiSources(): Promise<void> {
     )`)
   )
 
-  // 7. AI 智能体用户行：不存在则创建（删了自动重建），昵称恒与配置同步
-  const { ensureAgentUser, syncAgentNickname, getAgentConfig } =
+  // 7. AI 智能体用户行：不存在则创建（删了自动重建），昵称/头像恒与配置同步
+  const { ensureAgentUser, syncAgentProfile, getAgentConfig } =
     await import('../services/ai-agent.js')
   await ensureAgentUser()
   const agentConfig = await getAgentConfig()
-  await syncAgentNickname(agentConfig.nickname)
+  await syncAgentProfile(agentConfig.nickname, agentConfig.avatar)
 }

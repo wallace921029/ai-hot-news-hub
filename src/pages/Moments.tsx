@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog'
 import { UserAvatar } from '@/components/UserAvatar'
 import { EmojiPickerButton } from '@/components/EmojiPickerButton'
+import { Pagination } from '@/components/Pagination'
 import { ImageGrid } from '@/components/ImageGrid'
 import {
   compressImage,
@@ -37,6 +38,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
+import { useAiReplyPoll, isFreshContent } from '@/hooks/useAiReplyPoll'
 import type { CommunityMoment, MomentComment } from '@/types'
 
 const MOMENT_LIMIT = 280
@@ -56,20 +58,56 @@ function useFormatTime() {
   }
 }
 
-function MomentComments({ momentId }: { momentId: number }) {
+const COMMENT_PAGE_SIZE = 5
+
+function MomentComments({
+  momentId,
+  momentCreatedAt,
+  commentCount,
+}: {
+  momentId: number
+  momentCreatedAt?: string
+  commentCount: number
+}) {
   const { t } = useTranslation()
   const { user, isAdmin } = useUserStore()
   const queryClient = useQueryClient()
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
+  const [showAll, setShowAll] = useState(false)
+  const [page, setPage] = useState(1)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const formatTime = useFormatTime()
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['moment-comments', momentId],
-    queryFn: () => api.getMomentComments(momentId, 1, 50),
+  const previewKey = ['moment-comments', momentId, 'preview']
+  const pageKey = ['moment-comments', momentId, 'page', page]
+  const isFreshMoment = isFreshContent(momentCreatedAt)
+
+  // 预览：最新 1 条（有评论才查；新鲜动态也查，否则欢迎语等不到）
+  const { data: preview } = useQuery({
+    queryKey: previewKey,
+    queryFn: () => api.getMomentComments(momentId, 1, 1, 'desc'),
+    enabled: commentCount > 0 || isFreshMoment,
   })
+  // 展开：分页 5 条/页，时间正序
+  const { data: pageData, isLoading: pageLoading } = useQuery({
+    queryKey: pageKey,
+    queryFn: () => api.getMomentComments(momentId, page, COMMENT_PAGE_SIZE),
+    enabled: showAll,
+  })
+  const { watchAiReply, stopAiReplyWatch } = useAiReplyPoll()
+
+  // 新动态等欢迎语：动态新鲜、预览为空，定向等第一条出现（抓到即停）
+  useEffect(() => {
+    if (!isFreshMoment || !preview) return
+    if ((preview.items?.length || 0) > 0) return
+    watchAiReply({
+      queryKey: previewKey,
+      isArrived: (cached: unknown) => ((cached as { items?: unknown[] })?.items || []).length > 0,
+    })
+    return () => stopAiReplyWatch()
+  }, [isFreshMoment, preview, momentId, watchAiReply, stopAiReplyWatch])
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['moment-comments', momentId] })
@@ -78,16 +116,68 @@ function MomentComments({ momentId }: { momentId: number }) {
 
   const createComment = useMutation({
     mutationFn: () => api.createMomentComment(momentId, input.trim()),
-    onMutate: () => setSending(true),
+    onMutate: async () => {
+      setSending(true)
+      await queryClient.cancelQueries({ queryKey: previewKey })
+      await queryClient.cancelQueries({ queryKey: pageKey })
+      const prevPreview = queryClient.getQueryData(previewKey)
+      const prevPage = queryClient.getQueryData(pageKey)
+      const temp: MomentComment = {
+        id: -Date.now(),
+        momentId,
+        userId: user?.id ?? 0,
+        content: input.trim(),
+        likeCount: 0,
+        likedByMe: false,
+        createdAt: new Date().toISOString(),
+        author: user
+          ? {
+              id: user.id,
+              username: user.username,
+              nickname: user.nickname ?? null,
+              avatar: user.avatar ?? null,
+            }
+          : null,
+      }
+      // 预览永远是最新 1 条：自己的新评论直接顶上去
+      queryClient.setQueryData(previewKey, (old: any) =>
+        old
+          ? {
+              ...old,
+              items: [temp],
+              pagination: { ...old.pagination, total: (old.pagination?.total ?? 0) + 1 },
+            }
+          : old
+      )
+      // 展开的分页里也追加一条（ showing 即时反馈）
+      queryClient.setQueryData(pageKey, (old: any) =>
+        old ? { ...old, items: [...(old.items || []), temp] } : old
+      )
+      return { prevPreview, prevPage, previewKey, pageKey }
+    },
     onSuccess: (data) => {
       toast.success(t('moments.commentSuccess'))
       if (data?.aiQuotaExhausted) toast.warning(t('ai.quotaExhausted'))
       setInput('')
       setSending(false)
       invalidate()
+      // @ 了智能体且后台已接单：定向轮询等回复出现（抓到即停，无感）
+      if (data?.aiPending && data?.agentUserId && data?.comment?.id) {
+        const myId = data.comment.id as number
+        const agentId = data.agentUserId as number
+        watchAiReply({
+          queryKey: previewKey,
+          isArrived: (cached: unknown) => {
+            const items = (cached as { items?: MomentComment[] })?.items || []
+            return items.some((c) => c.id > myId && c.author?.id === agentId)
+          },
+        })
+      }
     },
-    onError: (e: Error) => {
+    onError: (e: Error, _v, context) => {
       setSending(false)
+      if (context?.prevPreview) queryClient.setQueryData(context.previewKey, context.prevPreview)
+      if (context?.prevPage) queryClient.setQueryData(context.pageKey, context.prevPage)
       toast.error(e.message || t('moments.commentFailed'))
     },
   })
@@ -135,66 +225,104 @@ function MomentComments({ momentId }: { momentId: number }) {
     }
   }
 
+  const renderRow = (c: MomentComment) => {
+    const name = c.author?.nickname?.trim() || c.author?.username || '?'
+    const canDelete = c.userId === user?.id || isAdmin
+    return (
+      <div key={c.id} className="flex gap-2">
+        <UserAvatar
+          avatar={c.author?.avatar}
+          username={c.author?.username || '?'}
+          size={24}
+          className="mt-0.5 shrink-0 self-start"
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="font-medium text-foreground/85">{name}</span>
+            <span className="text-muted-foreground">{formatTime(c.createdAt)}</span>
+          </div>
+          <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap leading-relaxed">
+            {c.content}
+          </p>
+          <div className="flex items-center gap-1 mt-0.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-6 px-2 text-xs rounded-full ${c.likedByMe ? 'text-rose-500' : 'text-muted-foreground'}`}
+              onClick={() => toggleLike.mutate(c.id)}
+            >
+              <Heart className={`w-3 h-3 mr-1 ${c.likedByMe ? 'fill-current' : ''}`} />
+              {c.likeCount > 0 ? c.likeCount : ''}
+            </Button>
+            {canDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs rounded-full text-muted-foreground/70 hover:text-destructive"
+                onClick={() => setPendingDeleteId(c.id)}
+              >
+                <Trash2 className="w-3 h-3 mr-1" />
+                {t('common.delete')}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const previewItems = preview?.items || []
+  const previewTotal = preview?.pagination?.total ?? commentCount
+
   return (
     <>
       <div className="mt-3 rounded-xl bg-muted/40 p-3 space-y-3">
-        {isLoading ? (
+        {!showAll ? (
+          <>
+            <div className="space-y-3">{previewItems.map(renderRow)}</div>
+            {previewTotal === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-2">
+                {t('moments.noComments')}
+              </p>
+            )}
+            {previewTotal > 1 && (
+              <button
+                type="button"
+                onClick={() => setShowAll(true)}
+                className="text-xs text-primary/80 hover:text-primary transition-colors"
+              >
+                {t('moments.viewAllComments', { count: previewTotal })}
+              </button>
+            )}
+          </>
+        ) : pageLoading ? (
           <div className="space-y-2">
             <Skeleton className="h-3 w-2/3" />
             <Skeleton className="h-3 w-1/2" />
           </div>
-        ) : !data?.items.length ? (
-          <p className="text-xs text-muted-foreground text-center py-2">
-            {t('moments.noComments')}
-          </p>
         ) : (
-          <div className="space-y-3">
-            {data.items.map((c: MomentComment) => {
-              const name = c.author?.nickname?.trim() || c.author?.username || '?'
-              const canDelete = c.userId === user?.id || isAdmin
-              return (
-                <div key={c.id} className="flex gap-2">
-                  <UserAvatar
-                    avatar={c.author?.avatar}
-                    username={c.author?.username || '?'}
-                    size={24}
-                    className="mt-0.5 shrink-0 self-start"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <span className="font-medium text-foreground/85">{name}</span>
-                      <span className="text-muted-foreground">{formatTime(c.createdAt)}</span>
-                    </div>
-                    <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap leading-relaxed">
-                      {c.content}
-                    </p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={`h-6 px-2 text-xs rounded-full ${c.likedByMe ? 'text-rose-500' : 'text-muted-foreground'}`}
-                        onClick={() => toggleLike.mutate(c.id)}
-                      >
-                        <Heart className={`w-3 h-3 mr-1 ${c.likedByMe ? 'fill-current' : ''}`} />
-                        {c.likeCount > 0 ? c.likeCount : ''}
-                      </Button>
-                      {canDelete && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2 text-xs rounded-full text-muted-foreground/70 hover:text-destructive"
-                          onClick={() => setPendingDeleteId(c.id)}
-                        >
-                          <Trash2 className="w-3 h-3 mr-1" />
-                          {t('common.delete')}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          <>
+            <div className="space-y-3">{(pageData?.items || []).map(renderRow)}</div>
+            {(pageData?.pagination.totalPages || 0) > 1 && (
+              <Pagination
+                page={page}
+                totalPages={pageData.pagination.totalPages}
+                total={pageData.pagination.total}
+                pageSize={COMMENT_PAGE_SIZE}
+                onPageChange={setPage}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setShowAll(false)
+                setPage(1)
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t('moments.collapseComments')}
+            </button>
+          </>
         )}
         <div className="flex gap-2">
           <div className="flex-1 relative">
@@ -261,7 +389,7 @@ function MomentCard({
   const { t } = useTranslation()
   const { user, isAdmin } = useUserStore()
   const queryClient = useQueryClient()
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(true)
   const formatTime = useFormatTime()
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['moments'] })
@@ -342,7 +470,13 @@ function MomentCard({
                   />
                 </Button>
               </div>
-              {expanded && <MomentComments momentId={moment.id} />}
+              {expanded && (
+                <MomentComments
+                  momentId={moment.id}
+                  momentCreatedAt={moment.createdAt}
+                  commentCount={moment.commentCount}
+                />
+              )}
             </div>
           </div>
         </CardContent>
@@ -557,13 +691,19 @@ export function MomentsPage() {
                     )}
                   </Button>
                   <EmojiPickerButton onSelect={insertEmoji} />
-                  <Button size="sm" disabled={!canPublish} onClick={submit} className="h-8">
+                  <Button
+                    type="button"
+                    size="icon"
+                    disabled={!canPublish}
+                    onClick={submit}
+                    title={t('moments.publish')}
+                    className="h-8 w-8 rounded-full"
+                  >
                     {publishing ? (
-                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      <Send className="w-4 h-4 mr-1.5" />
+                      <Send className="w-4 h-4" />
                     )}
-                    {t('moments.publish')}
                   </Button>
                 </div>
               </div>

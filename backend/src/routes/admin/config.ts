@@ -11,11 +11,13 @@ import {
 import {
   DEFAULT_NICKNAME,
   DEFAULT_PERSONA,
-  DEFAULT_MAX_TOKENS,
   DEFAULT_TEMPERATURE,
   DEFAULT_DAILY_LIMIT,
+  DEFAULT_TIMEOUT_SECONDS,
+  AI_AGENT_AVATAR,
   AI_AGENT_USERNAME,
-  syncAgentNickname,
+  normalizeAgentAvatar,
+  syncAgentProfile,
 } from '../../services/ai-agent.js'
 import { env } from '../../utils/env.js'
 
@@ -30,8 +32,18 @@ const configSchema = z.object({
   aiAgentEnabled: z.boolean().optional(),
   aiAgentNickname: z.string().min(1).max(50).optional(),
   aiAgentPersona: z.string().min(1).max(8000).optional(),
-  aiAgentMaxTokens: z.number().min(1).max(32000).optional(),
+  aiAgentAvatar: z.string().min(1).max(100).optional(),
+  aiAgentMaxTokens: z.number().min(1).max(1000000).nullable().optional(),
   aiAgentTemperature: z.number().min(0).max(2).optional(),
+  aiAgentTopP: z.number().min(0).max(1).nullable().optional(),
+  aiAgentFrequencyPenalty: z.number().min(-2).max(2).nullable().optional(),
+  aiAgentPresencePenalty: z.number().min(-2).max(2).nullable().optional(),
+  aiAgentThinking: z.enum(['enabled', 'disabled']).nullable().optional(),
+  aiAgentReasoningEffort: z
+    .enum(['minimal', 'none', 'low', 'medium', 'high', 'xhigh', 'max'])
+    .nullable()
+    .optional(),
+  aiAgentTimeout: z.number().min(10).max(600).optional(),
   aiAgentThrottleEnabled: z.boolean().optional(),
   aiAgentDailyLimit: z.number().min(0).max(100000).optional(),
 })
@@ -58,8 +70,15 @@ export async function configRoutes(app: FastifyInstance) {
       aiAgentEnabled: configMap.ai_agent_enabled ?? false,
       aiAgentNickname: configMap.ai_agent_nickname || DEFAULT_NICKNAME,
       aiAgentPersona: configMap.ai_agent_persona || DEFAULT_PERSONA,
-      aiAgentMaxTokens: configMap.ai_agent_max_tokens ?? DEFAULT_MAX_TOKENS,
+      aiAgentAvatar: configMap.ai_agent_avatar || AI_AGENT_AVATAR,
+      aiAgentMaxTokens: configMap.ai_agent_max_tokens ?? null,
       aiAgentTemperature: configMap.ai_agent_temperature ?? DEFAULT_TEMPERATURE,
+      aiAgentTopP: configMap.ai_agent_top_p ?? null,
+      aiAgentFrequencyPenalty: configMap.ai_agent_frequency_penalty ?? null,
+      aiAgentPresencePenalty: configMap.ai_agent_presence_penalty ?? null,
+      aiAgentThinking: configMap.ai_agent_thinking ?? null,
+      aiAgentReasoningEffort: configMap.ai_agent_reasoning_effort ?? null,
+      aiAgentTimeout: configMap.ai_agent_timeout ?? DEFAULT_TIMEOUT_SECONDS,
       aiAgentThrottleEnabled: configMap.ai_agent_throttle_enabled ?? true,
       aiAgentDailyLimit: configMap.ai_agent_daily_limit ?? DEFAULT_DAILY_LIMIT,
     }
@@ -92,7 +111,6 @@ export async function configRoutes(app: FastifyInstance) {
     }
 
     // AI 昵称不可与活人用户重名（改名后历史评论作者名自动跟随）
-    let nicknameToSync: string | null = null
     if (data.aiAgentNickname !== undefined) {
       const nickname = data.aiAgentNickname.trim()
       if (!nickname) {
@@ -107,7 +125,17 @@ export async function configRoutes(app: FastifyInstance) {
         return reply.status(409).send({ error: `昵称「${nickname}」已被用户占用` })
       }
       data.aiAgentNickname = nickname
-      nicknameToSync = nickname
+    }
+
+    // 头像必须是合法 DiceBear style:seed（非法直接 400）
+    if (data.aiAgentAvatar !== undefined) {
+      const avatar = normalizeAgentAvatar(data.aiAgentAvatar.trim())
+      if (!avatar) {
+        return reply
+          .status(400)
+          .send({ error: '头像格式应为 style:seed（如 adventurer:ai-agent）' })
+      }
+      data.aiAgentAvatar = avatar
     }
 
     const updates = [
@@ -143,6 +171,10 @@ export async function configRoutes(app: FastifyInstance) {
         key: 'ai_agent_nickname',
         value: JSON.stringify(data.aiAgentNickname),
       },
+      data.aiAgentAvatar !== undefined && {
+        key: 'ai_agent_avatar',
+        value: JSON.stringify(data.aiAgentAvatar),
+      },
       data.aiAgentPersona !== undefined && {
         key: 'ai_agent_persona',
         value: JSON.stringify(data.aiAgentPersona),
@@ -154,6 +186,30 @@ export async function configRoutes(app: FastifyInstance) {
       data.aiAgentTemperature !== undefined && {
         key: 'ai_agent_temperature',
         value: JSON.stringify(data.aiAgentTemperature),
+      },
+      data.aiAgentTopP !== undefined && {
+        key: 'ai_agent_top_p',
+        value: JSON.stringify(data.aiAgentTopP),
+      },
+      data.aiAgentFrequencyPenalty !== undefined && {
+        key: 'ai_agent_frequency_penalty',
+        value: JSON.stringify(data.aiAgentFrequencyPenalty),
+      },
+      data.aiAgentPresencePenalty !== undefined && {
+        key: 'ai_agent_presence_penalty',
+        value: JSON.stringify(data.aiAgentPresencePenalty),
+      },
+      data.aiAgentThinking !== undefined && {
+        key: 'ai_agent_thinking',
+        value: JSON.stringify(data.aiAgentThinking),
+      },
+      data.aiAgentReasoningEffort !== undefined && {
+        key: 'ai_agent_reasoning_effort',
+        value: JSON.stringify(data.aiAgentReasoningEffort),
+      },
+      data.aiAgentTimeout !== undefined && {
+        key: 'ai_agent_timeout',
+        value: JSON.stringify(data.aiAgentTimeout),
       },
       data.aiAgentThrottleEnabled !== undefined && {
         key: 'ai_agent_throttle_enabled',
@@ -187,9 +243,11 @@ export async function configRoutes(app: FastifyInstance) {
     // 保存后立即生效（内存中的调度间隔同步更新）
     applyFetchIntervals(data.rssFetchInterval, data.apiFetchInterval)
 
-    // 昵称变更同步到智能体用户行（历史评论作者名自动跟随）
-    if (nicknameToSync) {
-      await syncAgentNickname(nicknameToSync)
+    // 昵称/头像变更同步到智能体用户行（历史评论作者自动跟随）
+    if (data.aiAgentNickname !== undefined || data.aiAgentAvatar !== undefined) {
+      const { getAgentConfig } = await import('../../services/ai-agent.js')
+      const agentConfig = await getAgentConfig()
+      await syncAgentProfile(agentConfig.nickname, agentConfig.avatar)
     }
 
     return { success: true }

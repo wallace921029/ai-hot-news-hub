@@ -166,11 +166,15 @@ export async function newsCommentRoutes(app: FastifyInstance) {
 
     // AI 智能体：评论里 @ 则后台回复一条；超额则同步提示（速递永不主动）
     let aiQuotaExhausted = false
+    let aiPending = false
+    let agentUserId: number | null = null
     const nickname = await getAgentNickname()
     if (containsMention(parsed.data.content, nickname)) {
       const check = await checkMentionAllowed(request.user.userId)
       if (check.ok && check.config) {
         const logId = await reserveMentionLog('news_comment', comment.id, request.user.userId)
+        aiPending = true
+        agentUserId = check.agentId
         runMentionReply({
           logId,
           config: check.config,
@@ -189,7 +193,7 @@ export async function newsCommentRoutes(app: FastifyInstance) {
       }
     }
 
-    return { success: true, comment, aiQuotaExhausted }
+    return { success: true, comment, aiQuotaExhausted, aiPending, agentUserId }
   })
 
   // 删除评论（本人或管理员；主楼会级联删回复）

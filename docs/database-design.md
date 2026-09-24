@@ -529,7 +529,12 @@ export const sourceStates = sqliteTable('source_states', {
 
 **相关系统配置键（`system_config`）：**
 `ai_agent_enabled`（无 Key 不可开）、`ai_agent_nickname`（显示名，双向防重）、
-`ai_agent_persona`（人设）、`ai_agent_max_tokens`、`ai_agent_temperature`、
+`ai_agent_persona`（人设）、`ai_agent_max_tokens`（选填，空=不限长度）、
+`ai_agent_temperature`、`ai_agent_top_p`、`ai_agent_frequency_penalty`、
+`ai_agent_presence_penalty`（采样参数，空=不传用模型默认）、
+`ai_agent_thinking`（enabled/disabled，智谱扩展；GLM-5.3 系强制思考不可关）、
+`ai_agent_reasoning_effort`（思考程度；GLM-5.3 系仅 max/high/low）、
+`ai_agent_timeout`（调用超时秒数，默认 120）、
 `ai_agent_throttle_enabled`、`ai_agent_daily_limit`（0=不限，仅手动 @ 计数）。
 
 ---

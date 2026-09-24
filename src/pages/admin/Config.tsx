@@ -7,8 +7,111 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Settings, Brain, RefreshCw, Clock } from 'lucide-react'
+import { Settings, Brain, RefreshCw, Clock, Dices } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { UserAvatar } from '@/components/UserAvatar'
+import { randomSeed, avatarStyles, type AvatarStyleKey } from '@/lib/avatar'
+import { cn } from '@/lib/utils'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+
+function parseAgentAvatar(v: unknown): { style: AvatarStyleKey; seed: string } {
+  const fallback = { style: 'adventurer' as AvatarStyleKey, seed: 'ai-agent' }
+  if (typeof v !== 'string') return fallback
+  const idx = v.indexOf(':')
+  const style = idx > 0 ? v.slice(0, idx) : ''
+  const seed = idx > 0 ? v.slice(idx + 1) : ''
+  if (!(style in avatarStyles) || !seed) return fallback
+  return { style: style as AvatarStyleKey, seed }
+}
+
+/** 智能体头像选择框（与用户资料页的头像选择一致：大预览 + 骰子 + 风格格子） */
+function AgentAvatarDialog({
+  open,
+  onOpenChange,
+  initial,
+  onSave,
+  saving,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  initial: string
+  onSave: (avatar: string) => void
+  saving: boolean
+}) {
+  const { t } = useTranslation()
+  const parsed = parseAgentAvatar(initial)
+  const [style, setStyle] = useState<AvatarStyleKey>(parsed.style)
+  const [seed, setSeed] = useState(parsed.seed)
+
+  useEffect(() => {
+    if (open) {
+      const p = parseAgentAvatar(initial)
+      setStyle(p.style)
+      setSeed(p.seed)
+    }
+  }, [open, initial])
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('admin.config.agentAvatarTitle')}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-6">
+          <div className="flex items-center gap-5">
+            <UserAvatar avatar={`${style}:${seed}`} username="ai" size={88} />
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => setSeed(randomSeed())}
+            >
+              <Dices className="w-4 h-4" />
+              {t('profile.regenerate')}
+            </Button>
+          </div>
+          <div className="grid grid-cols-6 gap-3">
+            {(Object.keys(avatarStyles) as AvatarStyleKey[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                title={key}
+                onClick={() => setStyle(key)}
+                className={cn(
+                  'flex items-center justify-center rounded-xl p-1.5 border-2 transition-colors',
+                  style === key
+                    ? 'border-primary bg-accent'
+                    : 'border-transparent hover:bg-accent/50'
+                )}
+              >
+                <UserAvatar avatar={`${key}:${seed}`} username={key} size={44} />
+              </button>
+            ))}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            type="button"
+            disabled={saving}
+            onClick={() => onSave(`${style}:${seed}`)}
+            className="bg-foreground text-background hover:bg-foreground/90"
+          >
+            {t('common.save')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 export function AdminConfig() {
   const queryClient = useQueryClient()
@@ -20,8 +123,16 @@ export function AdminConfig() {
     aiAgentEnabled: false,
     aiAgentNickname: '',
     aiAgentPersona: '',
-    aiAgentMaxTokens: 300,
+    aiAgentAvatar: '',
+    aiAgentMaxTokens: null as number | null,
     aiAgentTemperature: 0.8,
+    aiAgentTopP: null as number | null,
+    aiAgentFrequencyPenalty: null as number | null,
+    aiAgentPresencePenalty: null as number | null,
+    aiAgentThinking: '' as '' | 'enabled' | 'disabled',
+    aiAgentReasoningEffort: '' as
+      '' | 'minimal' | 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max',
+    aiAgentTimeout: 120,
     aiAgentThrottleEnabled: true,
     aiAgentDailyLimit: 20,
   })
@@ -34,6 +145,7 @@ export function AdminConfig() {
   const [models, setModels] = useState<string[]>([])
   const [loadingModels, setLoadingModels] = useState(false)
   const [showModelList, setShowModelList] = useState(false)
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false)
 
   const { data: config, isLoading } = useQuery({
     queryKey: ['admin-config'],
@@ -54,8 +166,15 @@ export function AdminConfig() {
         aiAgentEnabled: config.aiAgentEnabled ?? false,
         aiAgentNickname: config.aiAgentNickname || '',
         aiAgentPersona: config.aiAgentPersona || '',
-        aiAgentMaxTokens: config.aiAgentMaxTokens ?? 300,
+        aiAgentAvatar: config.aiAgentAvatar || '',
+        aiAgentMaxTokens: config.aiAgentMaxTokens ?? null,
         aiAgentTemperature: config.aiAgentTemperature ?? 0.8,
+        aiAgentTopP: config.aiAgentTopP ?? null,
+        aiAgentFrequencyPenalty: config.aiAgentFrequencyPenalty ?? null,
+        aiAgentPresencePenalty: config.aiAgentPresencePenalty ?? null,
+        aiAgentThinking: config.aiAgentThinking ?? '',
+        aiAgentReasoningEffort: config.aiAgentReasoningEffort ?? '',
+        aiAgentTimeout: config.aiAgentTimeout ?? 120,
         aiAgentThrottleEnabled: config.aiAgentThrottleEnabled ?? true,
         aiAgentDailyLimit: config.aiAgentDailyLimit ?? 20,
       })
@@ -72,11 +191,27 @@ export function AdminConfig() {
     mutationFn: () => {
       const data: Record<string, unknown> = { ...aiForm }
       if (data.aiApiKey === '***') delete data.aiApiKey
+      // 下拉"默认"以空字符串表示，后端只接受 null/枚举
+      if (data.aiAgentThinking === '') data.aiAgentThinking = null
+      if (data.aiAgentReasoningEffort === '') data.aiAgentReasoningEffort = null
+      if (!data.aiAgentAvatar) delete data.aiAgentAvatar
       return api.updateConfig(data)
     },
     onSuccess: () => {
       toast.success(t('admin.config.saveSuccess'))
       queryClient.invalidateQueries({ queryKey: ['admin-config'] })
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : t('admin.config.saveFailed')),
+  })
+
+  const saveAvatarMutation = useMutation({
+    mutationFn: (avatar: string) => api.updateConfig({ aiAgentAvatar: avatar }),
+    onSuccess: (_, avatar) => {
+      toast.success(t('admin.config.saveSuccess'))
+      setAiForm((prev) => ({ ...prev, aiAgentAvatar: avatar }))
+      queryClient.invalidateQueries({ queryKey: ['admin-config'] })
+      setAvatarDialogOpen(false)
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : t('admin.config.saveFailed')),
@@ -157,6 +292,9 @@ export function AdminConfig() {
 
         <TabsContent value="ai">
           <div className="rounded-xl border bg-card text-card-foreground p-5 space-y-4">
+            <h4 className="text-[13px] font-semibold text-foreground/90 tracking-wide">
+              {t('admin.config.groupConnection')}
+            </h4>
             <div className="space-y-2">
               <Label>{t('admin.config.apiKey')}</Label>
               <Input
@@ -214,16 +352,11 @@ export function AdminConfig() {
                 )}
               </div>
             </div>
-            <Button
-              type="button"
-              onClick={() => saveAiMutation.mutate()}
-              disabled={saveAiMutation.isPending}
-              className="bg-foreground text-background hover:bg-foreground/90"
-            >
-              {t('admin.config.saveAiConfig')}
-            </Button>
 
             <div className="border-t pt-4 space-y-4">
+              <h4 className="text-[13px] font-semibold text-foreground/90 tracking-wide">
+                {t('admin.config.groupAgent')}
+              </h4>
               <div className="flex items-center justify-between">
                 <div>
                   <Label>{t('admin.config.agentEnabled')}</Label>
@@ -249,6 +382,35 @@ export function AdminConfig() {
                 </p>
               </div>
               <div className="space-y-2">
+                <Label>{t('admin.config.agentAvatar')}</Label>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    title={t('admin.config.agentAvatarChange')}
+                    onClick={() => setAvatarDialogOpen(true)}
+                    className="rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <UserAvatar
+                      avatar={aiForm.aiAgentAvatar || undefined}
+                      username="ai"
+                      size={48}
+                      className="shrink-0 pointer-events-none"
+                    />
+                  </button>
+                  <span className="text-xs text-muted-foreground">
+                    {t('admin.config.agentAvatarChange')}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">{t('admin.config.agentAvatarDesc')}</p>
+              </div>
+              <AgentAvatarDialog
+                open={avatarDialogOpen}
+                onOpenChange={setAvatarDialogOpen}
+                initial={aiForm.aiAgentAvatar}
+                saving={saveAvatarMutation.isPending}
+                onSave={(avatar) => saveAvatarMutation.mutate(avatar)}
+              />
+              <div className="space-y-2">
                 <Label>{t('admin.config.agentPersona')}</Label>
                 <textarea
                   value={aiForm.aiAgentPersona}
@@ -260,17 +422,23 @@ export function AdminConfig() {
                   {t('admin.config.agentPersonaDesc')}
                 </p>
               </div>
+              <div className="border-t pt-4">
+                <h4 className="text-[13px] font-semibold text-foreground/90 tracking-wide">
+                  {t('admin.config.groupSampling')}
+                </h4>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>{t('admin.config.agentMaxTokens')}</Label>
                   <Input
                     type="number"
-                    value={aiForm.aiAgentMaxTokens}
-                    onChange={(e) =>
-                      setAiForm({ ...aiForm, aiAgentMaxTokens: parseInt(e.target.value) || 300 })
-                    }
+                    value={aiForm.aiAgentMaxTokens ?? ''}
+                    placeholder={t('admin.config.agentOptional')}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value)
+                      setAiForm({ ...aiForm, aiAgentMaxTokens: Number.isFinite(v) ? v : null })
+                    }}
                     min={1}
-                    max={32000}
                     className="max-w-xs"
                   />
                 </div>
@@ -291,6 +459,134 @@ export function AdminConfig() {
                     className="max-w-xs"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>{t('admin.config.agentTopP')}</Label>
+                  <Input
+                    type="number"
+                    step={0.05}
+                    value={aiForm.aiAgentTopP ?? ''}
+                    placeholder={t('admin.config.agentOptional')}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value)
+                      setAiForm({ ...aiForm, aiAgentTopP: Number.isFinite(v) ? v : null })
+                    }}
+                    min={0}
+                    max={1}
+                    className="max-w-xs"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('admin.config.agentFrequencyPenalty')}</Label>
+                  <Input
+                    type="number"
+                    step={0.1}
+                    value={aiForm.aiAgentFrequencyPenalty ?? ''}
+                    placeholder={t('admin.config.agentOptional')}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value)
+                      setAiForm({
+                        ...aiForm,
+                        aiAgentFrequencyPenalty: Number.isFinite(v) ? v : null,
+                      })
+                    }}
+                    min={-2}
+                    max={2}
+                    className="max-w-xs"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('admin.config.agentPresencePenalty')}</Label>
+                  <Input
+                    type="number"
+                    step={0.1}
+                    value={aiForm.aiAgentPresencePenalty ?? ''}
+                    placeholder={t('admin.config.agentOptional')}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value)
+                      setAiForm({
+                        ...aiForm,
+                        aiAgentPresencePenalty: Number.isFinite(v) ? v : null,
+                      })
+                    }}
+                    min={-2}
+                    max={2}
+                    className="max-w-xs"
+                  />
+                </div>
+              </div>
+              <div className="border-t pt-4">
+                <h4 className="text-[13px] font-semibold text-foreground/90 tracking-wide">
+                  {t('admin.config.groupThinking')}
+                </h4>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>{t('admin.config.agentThinking')}</Label>
+                  <select
+                    value={aiForm.aiAgentThinking}
+                    onChange={(e) =>
+                      setAiForm({
+                        ...aiForm,
+                        aiAgentThinking: e.target.value as '' | 'enabled' | 'disabled',
+                      })
+                    }
+                    className="flex h-10 w-full max-w-xs rounded-xl border border-input bg-muted/40 px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">{t('admin.config.agentDefault')}</option>
+                    <option value="enabled">{t('admin.config.agentThinkingOn')}</option>
+                    <option value="disabled">{t('admin.config.agentThinkingOff')}</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    {t('admin.config.agentThinkingDesc')}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('admin.config.agentReasoningEffort')}</Label>
+                  <select
+                    value={aiForm.aiAgentReasoningEffort}
+                    onChange={(e) =>
+                      setAiForm({
+                        ...aiForm,
+                        aiAgentReasoningEffort: e.target.value as
+                          '' | 'minimal' | 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max',
+                      })
+                    }
+                    className="flex h-10 w-full max-w-xs rounded-xl border border-input bg-muted/40 px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">{t('admin.config.agentDefault')}</option>
+                    <option value="minimal">minimal（极简）</option>
+                    <option value="none">none（无）</option>
+                    <option value="low">low（轻度）</option>
+                    <option value="medium">medium（中度）</option>
+                    <option value="high">high（高度）</option>
+                    <option value="xhigh">xhigh（超高）</option>
+                    <option value="max">max（最深）</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    {t('admin.config.agentReasoningEffortDesc')}
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('admin.config.agentTimeout')}</Label>
+                <Input
+                  type="number"
+                  value={aiForm.aiAgentTimeout}
+                  onChange={(e) =>
+                    setAiForm({ ...aiForm, aiAgentTimeout: parseInt(e.target.value) || 120 })
+                  }
+                  min={10}
+                  max={600}
+                  className="max-w-xs"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('admin.config.agentTimeoutDesc')}
+                </p>
+              </div>
+              <div className="border-t pt-4">
+                <h4 className="text-[13px] font-semibold text-foreground/90 tracking-wide">
+                  {t('admin.config.groupThrottle')}
+                </h4>
               </div>
               <div className="flex items-center justify-between">
                 <div>
@@ -317,6 +613,16 @@ export function AdminConfig() {
                   min={0}
                   className="max-w-xs"
                 />
+              </div>
+              <div className="pt-1">
+                <Button
+                  type="button"
+                  onClick={() => saveAiMutation.mutate()}
+                  disabled={saveAiMutation.isPending}
+                  className="bg-foreground text-background hover:bg-foreground/90"
+                >
+                  {t('admin.config.saveAiConfig')}
+                </Button>
               </div>
             </div>
           </div>
