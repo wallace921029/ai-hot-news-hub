@@ -4,7 +4,7 @@ services:
   app:
     build: .
     ports:
-      - "8762:8762"
+      - '8762:8762'
     volumes:
       - app-data:/app/backend/data
     environment:

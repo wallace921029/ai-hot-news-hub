@@ -66,7 +66,7 @@ export function AdminSources() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingSource, setEditingSource] = useState<DataSource | null>(null)
   const [form, setForm] = useState<RssForm>(defaultRssForm)
-  const [fetchingId, setFetchingId] = useState<number | null>(null)
+  const [fetchingKey, setFetchingKey] = useState<string | null>(null)
   const [fetchingAll, setFetchingAll] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
 
@@ -75,9 +75,12 @@ export function AdminSources() {
     queryFn: () => api.getSources(),
   })
 
-  const rssSources = sources?.filter((s) => s.type === 'rss') || []
-  const apiSources = sources?.filter((s) => s.type === 'rest' || s.type === 'html') || []
+  const rssSources = sources?.filter((s: DataSource) => !s.builtin && s.type === 'rss') || []
+  const apiSources = sources?.filter((s: DataSource) => s.builtin) || []
   const apiSourcesWithErrors = apiSources.filter((s) => s.lastError)
+
+  const sourceKey = (source: DataSource) =>
+    source.builtin ? `code:${source.code}` : `id:${source.id}`
 
   const createMutation = useMutation({
     mutationFn: (data: typeof defaultRssForm) =>
@@ -138,9 +141,10 @@ export function AdminSources() {
   })
 
   const fetchMutation = useMutation({
-    mutationFn: (id: number) => api.fetchSource(id),
-    onMutate: (id) => {
-      setFetchingId(id)
+    mutationFn: (source: DataSource) =>
+      source.builtin ? api.fetchBuiltinSource(source.code!) : api.fetchSource(source.id!),
+    onMutate: (source) => {
+      setFetchingKey(sourceKey(source))
     },
     onSuccess: () => {
       toast.success(t('admin.sources.fetchTriggered'))
@@ -151,12 +155,13 @@ export function AdminSources() {
     },
     onSettled: () => {
       // 延迟清除，让用户能看到旋转动画
-      setTimeout(() => setFetchingId(null), 500)
+      setTimeout(() => setFetchingKey(null), 500)
     },
   })
 
   const testMutation = useMutation({
-    mutationFn: (id: number) => api.testSource(id),
+    mutationFn: (source: DataSource) =>
+      source.builtin ? api.testBuiltinSource(source.code!) : api.testSource(source.id!),
     onSuccess: (data) => {
       if (data.success) {
         toast.success(`${t('admin.sources.testSuccess')} (${data.status})`)
@@ -169,10 +174,22 @@ export function AdminSources() {
     },
   })
 
-  const handleFetch = (e: React.MouseEvent, id: number) => {
+  const toggleBuiltinMutation = useMutation({
+    mutationFn: ({ code, enabled }: { code: string; enabled: boolean }) =>
+      api.updateBuiltinSource(code, { enabled }),
+    onSuccess: () => {
+      toast.success(t('admin.sources.updateSuccess'))
+      queryClient.invalidateQueries({ queryKey: ['admin-sources'] })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : t('admin.sources.updateFailed'))
+    },
+  })
+
+  const handleFetch = (e: React.MouseEvent, source: DataSource) => {
     e.preventDefault()
     e.stopPropagation()
-    fetchMutation.mutate(id)
+    fetchMutation.mutate(source)
   }
 
   const handleFetchAll = (e: React.MouseEvent) => {
@@ -181,14 +198,14 @@ export function AdminSources() {
     fetchAllMutation.mutate()
   }
 
-  const handleTest = (e: React.MouseEvent, id: number) => {
+  const handleTest = (e: React.MouseEvent, source: DataSource) => {
     e.preventDefault()
     e.stopPropagation()
-    testMutation.mutate(id)
+    testMutation.mutate(source)
   }
 
   const handleSubmit = () => {
-    if (editingSource) {
+    if (editingSource?.id != null) {
       updateMutation.mutate({ id: editingSource.id, data: form })
     } else {
       createMutation.mutate(form)
@@ -350,7 +367,7 @@ export function AdminSources() {
               <div className="space-y-1.5">
                 {rssSources.map((source) => (
                   <div
-                    key={source.id}
+                    key={sourceKey(source)}
                     className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
                   >
                     <div className="flex items-center space-x-3 min-w-0">
@@ -381,7 +398,7 @@ export function AdminSources() {
                         variant="ghost"
                         size="sm"
                         className="h-7 w-7 p-0"
-                        onClick={(e) => handleTest(e, source.id)}
+                        onClick={(e) => handleTest(e, source)}
                         title={t('admin.sources.testConnectivity')}
                       >
                         <Wifi className="h-3.5 w-3.5" />
@@ -391,12 +408,12 @@ export function AdminSources() {
                         variant="ghost"
                         size="sm"
                         className="h-7 w-7 p-0"
-                        onClick={(e) => handleFetch(e, source.id)}
-                        disabled={fetchingId === source.id}
+                        onClick={(e) => handleFetch(e, source)}
+                        disabled={fetchingKey === sourceKey(source)}
                         title={t('admin.sources.manualFetch')}
                       >
                         <RefreshCw
-                          className={`h-3.5 w-3.5 ${fetchingId === source.id ? 'animate-spin' : ''}`}
+                          className={`h-3.5 w-3.5 ${fetchingKey === sourceKey(source) ? 'animate-spin' : ''}`}
                         />
                       </Button>
                       <Button
@@ -445,7 +462,7 @@ export function AdminSources() {
             <div className="space-y-1">
               {apiSources.map((source) => (
                 <div
-                  key={source.id}
+                  key={sourceKey(source)}
                   className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
                 >
                   <div className="flex items-center space-x-3 min-w-0">
@@ -474,12 +491,21 @@ export function AdminSources() {
                       </span>
                     )}
                     <div className="flex items-center space-x-0.5">
+                      <Switch
+                        checked={source.enabled}
+                        disabled={toggleBuiltinMutation.isPending}
+                        onCheckedChange={(checked) =>
+                          source.code &&
+                          toggleBuiltinMutation.mutate({ code: source.code, enabled: checked })
+                        }
+                        aria-label={t('admin.sources.enabled')}
+                      />
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         className="h-6 w-6 p-0"
-                        onClick={(e) => handleTest(e, source.id)}
+                        onClick={(e) => handleTest(e, source)}
                         title={t('admin.sources.testConnectivity')}
                       >
                         <Wifi className="h-3 w-3" />
@@ -489,12 +515,12 @@ export function AdminSources() {
                         variant="ghost"
                         size="sm"
                         className="h-6 w-6 p-0"
-                        onClick={(e) => handleFetch(e, source.id)}
-                        disabled={fetchingId === source.id}
+                        onClick={(e) => handleFetch(e, source)}
+                        disabled={fetchingKey === sourceKey(source)}
                         title={t('admin.sources.manualFetch')}
                       >
                         <RefreshCw
-                          className={`h-3 w-3 ${fetchingId === source.id ? 'animate-spin' : ''}`}
+                          className={`h-3 w-3 ${fetchingKey === sourceKey(source) ? 'animate-spin' : ''}`}
                         />
                       </Button>
                     </div>

@@ -375,6 +375,11 @@ const parsers: Record<string, PlatformParser> = {
   ...apiParsers,
 }
 
+/** 校验内置源的 parser 键是否已注册（rest 层） */
+export function hasRestParser(name: string): boolean {
+  return name in parsers
+}
+
 export class RestFetcher implements Fetcher {
   async fetch(source: FetcherSource): Promise<RawNewsItem[]> {
     const parserName = source.parser || this.detectParser(source.url)

@@ -89,7 +89,10 @@ export const users = sqliteTable('users', {
 ### 2.2 数据源表 (data_sources)
 
 **功能描述：**
-存储数据源配置信息，包括 API 地址、抓取方式等。
+存储**可管理的数据源**配置。自「代码即订阅」（方案 C）起，本表**只存 RSS 订阅源**（`type='rss'`，
+管理端创建/编辑/删除均仅限 RSS）；内置 API 源的配置写死在
+`backend/src/fetchers/api-sources.ts`，其运行状态存放在 [`source_states`](#29-内置源状态表-source_states)，
+新闻/日志/告警用 `source_code` 列（而非本表外键）归属来源。
 
 **表结构：**
 
@@ -152,23 +155,24 @@ export const dataSources = sqliteTable('data_sources', {
 
 **表结构：**
 
-| 字段名       | 类型    | 约束                          | 说明                             |
-| ------------ | ------- | ----------------------------- | -------------------------------- |
-| id           | INTEGER | PRIMARY KEY, AUTOINCREMENT    | 新闻 ID                          |
-| source_id    | INTEGER | FOREIGN KEY → data_sources.id | 数据源 ID                        |
-| source_type  | TEXT    | NOT NULL, DEFAULT 'api'       | 来源类型：rss, api, topic        |
-| platform     | TEXT    | NOT NULL                      | 平台标识（如 zhihu, weibo）      |
-| title        | TEXT    | NOT NULL                      | 标题                             |
-| url          | TEXT    | NOT NULL, UNIQUE              | 原文链接                         |
-| description  | TEXT    | -                             | 摘要/描述                        |
-| author       | TEXT    | -                             | 作者                             |
-| published_at | INTEGER | -                             | 发布时间（时间戳）               |
-| fetched_at   | INTEGER | NOT NULL                      | 抓取时间（时间戳）               |
-| hot_score    | REAL    | -                             | 平台热度分                       |
-| metadata     | TEXT    | -                             | 元数据（JSON 字符串）            |
-| topic_id     | INTEGER | -                             | 预留：关联话题表                 |
-| status       | TEXT    | NOT NULL, DEFAULT 'processed' | 状态：pending, processed, failed |
-| created_at   | INTEGER | NOT NULL, DEFAULT unixepoch() | 创建时间（时间戳）               |
+| 字段名       | 类型    | 约束                          | 说明                                                     |
+| ------------ | ------- | ----------------------------- | -------------------------------------------------------- |
+| id           | INTEGER | PRIMARY KEY, AUTOINCREMENT    | 新闻 ID                                                  |
+| source_id    | INTEGER | FOREIGN KEY → data_sources.id | 数据源 ID（仅 RSS 源；内置 API 源为 NULL）               |
+| source_code  | TEXT    | -                             | 内置 API 源稳定 code（RSS 为 NULL；与 source_id 二选一） |
+| source_type  | TEXT    | NOT NULL, DEFAULT 'api'       | 来源类型：rss, api, topic                                |
+| platform     | TEXT    | NOT NULL                      | 平台标识（如 zhihu, weibo）                              |
+| title        | TEXT    | NOT NULL                      | 标题                                                     |
+| url          | TEXT    | NOT NULL, UNIQUE              | 原文链接                                                 |
+| description  | TEXT    | -                             | 摘要/描述                                                |
+| author       | TEXT    | -                             | 作者                                                     |
+| published_at | INTEGER | -                             | 发布时间（时间戳）                                       |
+| fetched_at   | INTEGER | NOT NULL                      | 抓取时间（时间戳）                                       |
+| hot_score    | REAL    | -                             | 平台热度分                                               |
+| metadata     | TEXT    | -                             | 元数据（JSON 字符串）                                    |
+| topic_id     | INTEGER | -                             | 预留：关联话题表                                         |
+| status       | TEXT    | NOT NULL, DEFAULT 'processed' | 状态：pending, processed, failed                         |
+| created_at   | INTEGER | NOT NULL, DEFAULT unixepoch() | 创建时间（时间戳）                                       |
 
 **索引：**
 
@@ -187,6 +191,7 @@ export const dataSources = sqliteTable('data_sources', {
 export const newsItems = sqliteTable('news_items', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   sourceId: integer('source_id').references(() => dataSources.id),
+  sourceCode: text('source_code'),
   sourceType: text('source_type', { enum: ['rss', 'api', 'topic'] })
     .notNull()
     .default('api'),
@@ -306,15 +311,16 @@ export const topics = sqliteTable('topics', {
 
 **表结构：**
 
-| 字段名     | 类型    | 约束                                    | 说明                  |
-| ---------- | ------- | --------------------------------------- | --------------------- |
-| id         | INTEGER | PRIMARY KEY, AUTOINCREMENT              | 日志 ID               |
-| source_id  | INTEGER | NOT NULL, FOREIGN KEY → data_sources.id | 数据源 ID             |
-| status     | TEXT    | NOT NULL                                | 状态：success, failed |
-| duration   | INTEGER | NOT NULL                                | 耗时（毫秒）          |
-| count      | INTEGER | NOT NULL, DEFAULT 0                     | 抓取条数              |
-| error      | TEXT    | -                                       | 错误信息              |
-| created_at | INTEGER | NOT NULL, DEFAULT unixepoch()           | 创建时间（时间戳）    |
+| 字段名      | 类型    | 约束                          | 说明                                          |
+| ----------- | ------- | ----------------------------- | --------------------------------------------- |
+| id          | INTEGER | PRIMARY KEY, AUTOINCREMENT    | 日志 ID                                       |
+| source_id   | INTEGER | FOREIGN KEY → data_sources.id | 数据源 ID（仅 RSS；可空，内置 API 源为 NULL） |
+| source_code | TEXT    | -                             | 内置 API 源稳定 code（与 source_id 二选一）   |
+| status      | TEXT    | NOT NULL                      | 状态：success, failed                         |
+| duration    | INTEGER | NOT NULL                      | 耗时（毫秒）                                  |
+| count       | INTEGER | NOT NULL, DEFAULT 0           | 抓取条数                                      |
+| error       | TEXT    | -                             | 错误信息                                      |
+| created_at  | INTEGER | NOT NULL, DEFAULT unixepoch() | 创建时间（时间戳）                            |
 
 **索引：**
 
@@ -329,9 +335,8 @@ export const topics = sqliteTable('topics', {
 ```typescript
 export const fetchLogs = sqliteTable('fetch_logs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  sourceId: integer('source_id')
-    .notNull()
-    .references(() => dataSources.id),
+  sourceId: integer('source_id').references(() => dataSources.id),
+  sourceCode: text('source_code'),
   status: text('status', { enum: ['success', 'failed'] }).notNull(),
   duration: integer('duration').notNull(),
   count: integer('count').notNull().default(0),
@@ -428,6 +433,57 @@ export const systemConfig = sqliteTable('system_config', {
 | ai_api_key           | AI API 密钥          | ''     |
 | ai_base_url          | AI API 基础地址      | ''     |
 | ai_model             | AI 模型名称          | ''     |
+
+---
+
+### 2.9 内置源状态表 (source_states)
+
+**功能描述：**
+「代码即订阅」方案下，内置 API 源（40 个，配置见 `backend/src/fetchers/api-sources.ts`）
+在 DB 中**只保留运行状态**，以稳定 `code` 为主键。管理端的启用开关、调度器的
+上次抓取时间/错误都写在这里；配置本身（url/method/headers/parser）以代码为唯一事实源，
+随发版变更，数据库不保存。
+
+**表结构：**
+
+| 字段名        | 类型    | 约束                          | 说明                              |
+| ------------- | ------- | ----------------------------- | --------------------------------- |
+| code          | TEXT    | PRIMARY KEY                   | 内置源稳定 code（如 uapis-weibo） |
+| enabled       | INTEGER | NOT NULL, DEFAULT 1           | 是否启用：1=启用, 0=禁用          |
+| last_fetch_at | INTEGER | -                             | 上次抓取时间（时间戳）            |
+| last_error    | TEXT    | -                             | 上次错误信息                      |
+| created_at    | INTEGER | NOT NULL, DEFAULT unixepoch() | 创建时间（时间戳）                |
+| updated_at    | INTEGER | NOT NULL, DEFAULT unixepoch() | 更新时间（时间戳）                |
+
+**Drizzle Schema：**
+
+```typescript
+export const sourceStates = sqliteTable('source_states', {
+  code: text('code').primaryKey(),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  lastFetchAt: integer('last_fetch_at', { mode: 'timestamp' }),
+  lastError: text('last_error'),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})
+```
+
+**身份规则汇总：**
+
+| 数据         | RSS 源                    | 内置 API 源                |
+| ------------ | ------------------------- | -------------------------- |
+| 配置         | `data_sources` 行         | `fetchers/api-sources.ts`  |
+| 运行状态     | `data_sources.enabled` 等 | `source_states`（按 code） |
+| 新闻归属     | `news_items.source_id`    | `news_items.source_code`   |
+| 抓取日志归属 | `fetch_logs.source_id`    | `fetch_logs.source_code`   |
+| 告警归属     | `error_alerts.source_id`  | `error_alerts.source_code` |
+
+启动时 `backend/src/db/migrate.ts` 执行幂等迁移（校验 parser 注册 → 补列/重建 fetch_logs →
+旧行按 url→code 迁移 → 补齐 `source_states`），新旧库均自动就绪。
 
 ---
 
@@ -632,7 +688,7 @@ npm run db:push
 
 ### 6.2 数据初始化
 
-运行种子脚本初始化默认数据：
+运行种子脚本初始化默认 RSS 数据源：
 
 ```bash
 cd backend
@@ -641,9 +697,10 @@ npm run db:seed
 
 **初始化内容：**
 
-- 默认管理员账号（admin@example.com / admin123）
-- 预置数据源配置
-- 默认系统配置
+- 默认 RSS 数据源 4 个（量子位、Google AI Blog、MIT Technology Review、Hacker News）
+- 内置 API 源无需 seed：启动时由 `src/db/migrate.ts` 幂等地补齐 `source_states`
+  （配置来自 `src/fetchers/api-sources.ts`）
+- 默认系统配置与管理员账号由后端启动时的 `initializeDefaults` 创建
 
 ---
 
@@ -727,7 +784,7 @@ cp backend/data/database.sqlite.backup backend/data/database.sqlite
 
 - `docs/PRD.md` — 产品需求文档
 - `docs/plan.md` — 开发计划
-- `docs/public-api-doc.md` — 公开 API 文档
+- `docs/api.md` — 公开 API 文档
 - `docs/uml-modeling.md` — UML 建模文档
 - `docs/module-description.md` — 模块功能详细描述
 - `docs/api-reference.md` — API 接口详细文档

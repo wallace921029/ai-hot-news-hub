@@ -13,6 +13,7 @@ import { momentRoutes } from './routes/moments.js'
 import { uploadRoutes } from './routes/uploads.js'
 import { adminRoutes } from './routes/admin/index.js'
 import { startScheduler, fetchAllSources } from './scheduler/index.js'
+import { migrateBuiltinApiSources } from './db/migrate.js'
 
 const app = Fastify({
   logger: true,
@@ -73,6 +74,9 @@ app.post(
 
 // 初始化默认数据
 async function initializeDefaults() {
+  // 「代码即订阅」迁移：旧库 API 源迁到 code 身份 + 补齐 source_states（幂等，须在调度器/路由读取前执行）
+  await migrateBuiltinApiSources()
+
   // 每次启动将管理员账号同步为 .env 配置（取最早创建的管理员，即引导账号）
   const [bootstrapAdmin] = await db
     .select()

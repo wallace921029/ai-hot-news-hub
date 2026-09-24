@@ -27,11 +27,13 @@ export function HomePage() {
   const {
     sourceType,
     sourceId,
+    sourceCode,
     search,
     page,
     pageSize,
     setSourceType,
     setSourceId,
+    setSourceCode,
     setSearch,
     setPage,
     setPageSize,
@@ -65,13 +67,14 @@ export function HomePage() {
   })
 
   const { data, isLoading } = useQuery({
-    queryKey: ['news', sourceType, sourceId, search, page, pageSize],
+    queryKey: ['news', sourceType, sourceId, sourceCode, search, page, pageSize],
     queryFn: () =>
       api.getNews({
         page,
         pageSize,
         sourceType,
         sourceId: sourceId || undefined,
+        sourceCode: sourceCode || undefined,
         search: search || undefined,
       }),
   })
@@ -178,22 +181,35 @@ export function HomePage() {
         {sources && sources.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             <Badge
-              variant={sourceId === null ? 'default' : 'outline'}
+              variant={sourceId === null && sourceCode === null ? 'default' : 'outline'}
               className="cursor-pointer hover:bg-accent transition-colors"
-              onClick={() => setSourceId(null)}
+              onClick={() => {
+                setSourceId(null)
+                setSourceCode(null)
+              }}
             >
               {t('home.allSources')}
             </Badge>
-            {sources.map((source: { id: number; name: string }) => (
-              <Badge
-                key={source.id}
-                variant={sourceId === source.id ? 'default' : 'outline'}
-                className="cursor-pointer hover:bg-accent transition-colors"
-                onClick={() => setSourceId(sourceId === source.id ? null : source.id)}
-              >
-                {source.name}
-              </Badge>
-            ))}
+            {sources.map((source: { id: number | null; code?: string | null; name: string }) => {
+              const isBuiltin = source.id == null && !!source.code
+              const selected = isBuiltin ? sourceCode === source.code : sourceId === source.id
+              return (
+                <Badge
+                  key={isBuiltin ? `code:${source.code}` : `id:${source.id}`}
+                  variant={selected ? 'default' : 'outline'}
+                  className="cursor-pointer hover:bg-accent transition-colors"
+                  onClick={() => {
+                    if (isBuiltin) {
+                      setSourceCode(sourceCode === source.code ? null : source.code!)
+                    } else {
+                      setSourceId(sourceId === source.id ? null : (source.id as number))
+                    }
+                  }}
+                >
+                  {source.name}
+                </Badge>
+              )
+            })}
           </div>
         )}
       </motion.div>

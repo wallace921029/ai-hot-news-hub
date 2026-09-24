@@ -85,6 +85,7 @@ class ApiService {
     pageSize?: number
     sourceType?: 'rss' | 'api' | 'topic'
     sourceId?: number
+    sourceCode?: string
     platform?: string
     search?: string
   }) {
@@ -93,6 +94,7 @@ class ApiService {
     if (params.pageSize) searchParams.set('pageSize', String(params.pageSize))
     if (params.sourceType) searchParams.set('sourceType', params.sourceType)
     if (params.sourceId) searchParams.set('sourceId', String(params.sourceId))
+    if (params.sourceCode) searchParams.set('sourceCode', params.sourceCode)
     if (params.platform) searchParams.set('platform', params.platform)
     if (params.search) searchParams.set('search', params.search)
 
@@ -303,6 +305,27 @@ class ApiService {
     return this.request<any>(`/admin/sources/${id}/test`, { method: 'POST' })
   }
 
+  // 管理员 - 内置 API 源（按 code 操作）
+  async fetchBuiltinSource(code: string) {
+    return this.request<any>(`/admin/sources/builtin/${code}/fetch`, { method: 'POST' })
+  }
+
+  async testBuiltinSource(code: string) {
+    return this.request<any>(`/admin/sources/builtin/${code}/test`, { method: 'POST' })
+  }
+
+  async updateBuiltinSource(code: string, data: { enabled: boolean }) {
+    return this.request<any>(`/admin/sources/builtin/${code}`, { method: 'PUT', body: data })
+  }
+
+  async getBuiltinSourceLogs(code: string, params?: { page?: number; pageSize?: number }) {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', String(params.page))
+    if (params?.pageSize) searchParams.set('pageSize', String(params.pageSize))
+
+    return this.request<any>(`/admin/sources/builtin/${code}/logs?${searchParams.toString()}`)
+  }
+
   // 管理员 - 用户
   async getUsers(params?: { page?: number; pageSize?: number }) {
     const searchParams = new URLSearchParams()
@@ -339,6 +362,7 @@ class ApiService {
     sourceType?: string
     search?: string
     sourceId?: number
+    sourceCode?: string
   }) {
     const searchParams = new URLSearchParams()
     if (params?.page) searchParams.set('page', String(params.page))
@@ -347,6 +371,7 @@ class ApiService {
     if (params?.sourceType) searchParams.set('sourceType', params.sourceType)
     if (params?.search) searchParams.set('search', params.search)
     if (params?.sourceId) searchParams.set('sourceId', String(params.sourceId))
+    if (params?.sourceCode) searchParams.set('sourceCode', params.sourceCode)
 
     return this.request<any>(`/admin/content?${searchParams.toString()}`)
   }
@@ -397,11 +422,17 @@ class ApiService {
   }
 
   // 管理员 - 日志
-  async getFetchLogs(params?: { page?: number; pageSize?: number; sourceId?: number }) {
+  async getFetchLogs(params?: {
+    page?: number
+    pageSize?: number
+    sourceId?: number
+    sourceCode?: string
+  }) {
     const searchParams = new URLSearchParams()
     if (params?.page) searchParams.set('page', String(params.page))
     if (params?.pageSize) searchParams.set('pageSize', String(params.pageSize))
     if (params?.sourceId) searchParams.set('sourceId', String(params.sourceId))
+    if (params?.sourceCode) searchParams.set('sourceCode', params.sourceCode)
 
     return this.request<any>(`/admin/logs/fetch?${searchParams.toString()}`)
   }

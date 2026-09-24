@@ -43,6 +43,7 @@ export function AdminContent() {
   const [pageSize, setPageSize] = useState(10)
   const [sourceType, setSourceType] = useState<'api' | 'rss' | 'topic'>('rss')
   const [sourceId, setSourceId] = useState<number | null>(null)
+  const [sourceCode, setSourceCode] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
@@ -66,13 +67,14 @@ export function AdminContent() {
   })
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-content', page, pageSize, sourceType, sourceId, search],
+    queryKey: ['admin-content', page, pageSize, sourceType, sourceId, sourceCode, search],
     queryFn: () =>
       api.getAdminContent({
         page,
         pageSize,
         sourceType,
         sourceId: sourceId || undefined,
+        sourceCode: sourceCode || undefined,
         search: search || undefined,
       }),
   })
@@ -84,6 +86,7 @@ export function AdminContent() {
   const handleSourceTypeChange = (value: string) => {
     setSourceType(value as 'api' | 'rss' | 'topic')
     setSourceId(null)
+    setSourceCode(null)
     setPage(1)
   }
 
@@ -190,28 +193,39 @@ export function AdminContent() {
         {filteredSources.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             <Badge
-              variant={sourceId === null ? 'default' : 'outline'}
+              variant={sourceId === null && sourceCode === null ? 'default' : 'outline'}
               className="cursor-pointer hover:bg-accent transition-colors"
               onClick={() => {
                 setSourceId(null)
+                setSourceCode(null)
                 setPage(1)
               }}
             >
               {t('home.allSources')}
             </Badge>
-            {filteredSources.map((source: { id: number; name: string }) => (
-              <Badge
-                key={source.id}
-                variant={sourceId === source.id ? 'default' : 'outline'}
-                className="cursor-pointer hover:bg-accent transition-colors"
-                onClick={() => {
-                  setSourceId(sourceId === source.id ? null : source.id)
-                  setPage(1)
-                }}
-              >
-                {source.name}
-              </Badge>
-            ))}
+            {filteredSources.map(
+              (source: { id: number | null; code?: string | null; name: string }) => {
+                const isBuiltin = source.id == null && !!source.code
+                const selected = isBuiltin ? sourceCode === source.code : sourceId === source.id
+                return (
+                  <Badge
+                    key={isBuiltin ? `code:${source.code}` : `id:${source.id}`}
+                    variant={selected ? 'default' : 'outline'}
+                    className="cursor-pointer hover:bg-accent transition-colors"
+                    onClick={() => {
+                      if (isBuiltin) {
+                        setSourceCode(sourceCode === source.code ? null : source.code!)
+                      } else {
+                        setSourceId(sourceId === source.id ? null : (source.id as number))
+                      }
+                      setPage(1)
+                    }}
+                  >
+                    {source.name}
+                  </Badge>
+                )
+              }
+            )}
           </div>
         )}
       </div>

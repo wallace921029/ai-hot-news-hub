@@ -34,11 +34,11 @@ AI Hot News Hub 是一个基于 AI 的热门信息汇总平台，自动聚合来
 
 ### 2.1 核心文档
 
-| 文档               | 说明                   | 链接                                   |
-| ------------------ | ---------------------- | -------------------------------------- |
-| 产品需求文档 (PRD) | 产品功能规格和需求定义 | [PRD.md](PRD.md)                       |
-| 开发计划           | 项目开发阶段和进度跟踪 | [plan.md](plan.md)                     |
-| 公开 API 文档      | 已测试的公开 API 接口  | [public-api-doc.md](public-api-doc.md) |
+| 文档               | 说明                   | 链接               |
+| ------------------ | ---------------------- | ------------------ |
+| 产品需求文档 (PRD) | 产品功能规格和需求定义 | [PRD.md](PRD.md)   |
+| 开发计划           | 项目开发阶段和进度跟踪 | [plan.md](plan.md) |
+| 公开 API 文档      | 已测试的公开 API 接口  | [api.md](api.md)   |
 
 ### 2.2 设计文档
 
@@ -239,7 +239,7 @@ ai-hot-news-hub/
 
 - [PRD.md - 数据源管理](PRD.md#4-数据源管理)
 - [module-description.md - 数据抓取模块](module-description.md#34-数据抓取模块-backend-srcfetchers)
-- [public-api-doc.md](public-api-doc.md)
+- [api.md](api.md)
 
 ### 5.3 内容抓取与处理
 
@@ -512,7 +512,7 @@ A: 登录管理后台，进入日志查看页面，选择抓取日志。
 
 1. [PRD.md](PRD.md) - 产品需求文档
 2. [plan.md](plan.md) - 开发计划
-3. [public-api-doc.md](public-api-doc.md) - 公开 API 文档
+3. [api.md](api.md) - 公开 API 文档
 4. [uml-modeling.md](uml-modeling.md) - UML 建模文档
 5. [module-description.md](module-description.md) - 模块功能详细描述
 6. [api-reference.md](api-reference.md) - API 接口详细文档

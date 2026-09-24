@@ -4,7 +4,8 @@
 
 - Two npm packages, two lockfiles: root = Vite + React frontend; `backend/` = Fastify + SQLite API (own `node_modules`). Install both: `npm install` at root, then `cd backend && npm install`.
 - Frontend entry: `src/main.tsx` → `src/App.tsx`. Backend entry: `backend/src/index.ts` (routes registered there with `/api/*` prefixes).
-- New data-source fetchers go in `backend/src/fetchers/` (+ `backend/src/parsers/`). Consult `docs/public-api-doc.md` for already-tested source APIs before adding one.
+- New data-source fetchers go in `backend/src/fetchers/` (+ `backend/src/parsers/`). Consult `docs/api.md` for already-tested source APIs before adding one.
+- Built-in API sources are **code-only config** (`backend/src/fetchers/api-sources.ts`, "代码即订阅"): they never live in `data_sources`; DB only stores their runtime state (`source_states`, keyed by stable `code`) and news/logs/alerts reference them via `source_code`. Startup runs an idempotent migration (`backend/src/db/migrate.ts`) that syncs state rows and upgrades old DBs. RSS sources remain rows in `data_sources` (admin can only create/edit RSS).
 
 ## Commands
 
@@ -19,7 +20,7 @@ Root (frontend):
 
 - `npm run dev` — `tsx watch src/index.ts`, serves `:8762`
 - `npm run build` / `npm run start` — `tsc` → `node dist/index.js`
-- `npm run db:push` then `npm run db:seed` — create SQLite schema, then seed data sources (order matters; seed assumes schema exists)
+- `npm run db:push` then `npm run db:seed` — create SQLite schema, then seed the default **RSS** sources only (order matters; seed assumes schema exists; built-in API sources need no seed — they come from `api-sources.ts`)
 
 Tests: no framework / no script. `tests/api-integration.test.ts` uses `node:test` — run `node --test tests/api-integration.test.ts` with a seeded backend running on `:8762` (expects `admin@example.com` / `admin123`, invite code `hotnews2026`).
 

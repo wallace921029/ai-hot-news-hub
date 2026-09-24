@@ -87,7 +87,7 @@ AI Hot News Hub 是一个基于 AI 的热门信息汇总平台，自动聚合来
 
 ### 4.2 已验证数据源
 
-详见 `docs/public-api-doc.md`，包括：
+详见 `docs/api.md`，包括：
 
 **国内社交/资讯**：知乎热榜、微博热搜、B站热搜、今日头条、知乎日报、澎湃新闻
 
@@ -705,4 +705,4 @@ ai-hot-news-hub/
 
 ### B. 相关文档
 
-- `docs/public-api-doc.md` — 已测试的公开 API 文档
+- `docs/api.md` — 已测试的公开 API 文档

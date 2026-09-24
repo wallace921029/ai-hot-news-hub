@@ -36,7 +36,7 @@ async function api(method: string, path: string, body?: unknown, token?: string)
 describe('Auth API', () => {
   it('POST /auth/login — admin login', async () => {
     const res = await api('POST', '/auth/login', {
-      email: 'admin@example.com',
+      identifier: 'admin@example.com',
       password: 'admin123',
     })
     assert.equal(res.status, 200)
@@ -47,7 +47,7 @@ describe('Auth API', () => {
 
   it('POST /auth/login — wrong password', async () => {
     const res = await api('POST', '/auth/login', {
-      email: 'admin@example.com',
+      identifier: 'admin@example.com',
       password: 'wrongpassword',
     })
     assert.equal(res.status, 401)
@@ -55,7 +55,7 @@ describe('Auth API', () => {
 
   it('POST /auth/login — non-existent user', async () => {
     const res = await api('POST', '/auth/login', {
-      email: 'nobody@example.com',
+      identifier: 'nobody@example.com',
       password: 'password',
     })
     assert.equal(res.status, 401)
@@ -165,7 +165,7 @@ describe('Admin Sources API', () => {
     assert.equal(res.status, 200)
     assert.ok(Array.isArray(res.data))
     assert.ok((res.data as any).length > 0)
-    testSourceId = (res.data as any)[0].id
+    testSourceId = ((res.data as any).find((s: any) => !s.builtin && s.id != null) as any).id
   })
 
   it('GET /admin/sources — requires admin', async () => {
@@ -179,10 +179,10 @@ describe('Admin Sources API', () => {
       '/admin/sources',
       {
         name: 'Test Source',
-        type: 'rest',
+        type: 'rss',
+        sourceType: 'rss',
         url: 'https://httpbin.org/get',
         method: 'GET',
-        parser: 'test',
         enabled: true,
         description: 'Test source for integration tests',
       },
@@ -345,7 +345,6 @@ describe('Admin Stats API', () => {
     assert.equal(res.status, 200)
     assert.ok('overview' in (res.data as any))
     assert.ok('platformDistribution' in (res.data as any))
-    assert.ok('categoryDistribution' in (res.data as any))
     assert.ok('dailyTrend' in (res.data as any))
   })
 })
@@ -370,51 +369,6 @@ describe('Admin Logs API', () => {
     const res = await api('GET', '/admin/logs/ai', undefined, adminToken)
     assert.equal(res.status, 200)
     assert.ok('items' in (res.data as any))
-  })
-})
-
-// ============================================================
-// Admin — Categories
-// ============================================================
-describe('Admin Categories API', () => {
-  let catId = 0
-
-  it('GET /admin/categories — returns categories', async () => {
-    const res = await api('GET', '/admin/categories', undefined, adminToken)
-    assert.equal(res.status, 200)
-    assert.ok(Array.isArray(res.data))
-  })
-
-  it('POST /admin/categories — create category', async () => {
-    const res = await api(
-      'POST',
-      '/admin/categories',
-      { name: 'TestCategory', description: 'Test', enabled: true },
-      adminToken
-    )
-    assert.equal(res.status, 200)
-    catId = (res.data as any).id
-  })
-
-  it('PUT /admin/categories/:id — update category', async () => {
-    const res = await api(
-      'PUT',
-      `/admin/categories/${catId}`,
-      { name: 'UpdatedCategory' },
-      adminToken
-    )
-    assert.equal(res.status, 200)
-  })
-
-  it('DELETE /admin/categories/:id — delete category', async () => {
-    const res = await api('DELETE', `/admin/categories/${catId}`, undefined, adminToken)
-    assert.equal(res.status, 200)
-  })
-
-  it('GET /admin/categories/enabled — enabled only', async () => {
-    const res = await api('GET', '/admin/categories/enabled', undefined, adminToken)
-    assert.equal(res.status, 200)
-    assert.ok(Array.isArray(res.data))
   })
 })
 

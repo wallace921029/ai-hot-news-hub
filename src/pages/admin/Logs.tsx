@@ -121,7 +121,8 @@ export function AdminLogs() {
                           : t('admin.logs.failed')}
                       </Badge>
                       <span className="text-sm text-foreground/70">
-                        {t('admin.logs.fetch')} #{log.sourceId}
+                        {t('admin.logs.fetch')}{' '}
+                        {log.sourceCode || (log.sourceId != null ? `#${log.sourceId}` : '-')}
                       </span>
                       {log.count !== undefined && (
                         <span className="text-xs text-muted-foreground">
@@ -171,7 +172,13 @@ export function AdminLogs() {
               <div className="space-y-1.5">
                 {errorLogs.items.map(
                   (
-                    log: { type: string; sourceId?: number; error?: string; createdAt: string },
+                    log: {
+                      type: string
+                      sourceId?: number | null
+                      sourceCode?: string | null
+                      error?: string
+                      createdAt: string
+                    },
                     index: number
                   ) => (
                     <div
@@ -183,7 +190,8 @@ export function AdminLogs() {
                           {log.type === 'fetch' ? t('admin.logs.fetch') : t('admin.logs.system')}
                         </Badge>
                         <span className="text-sm text-foreground/70">
-                          {t('admin.logs.fetch')} #{log.sourceId}
+                          {t('admin.logs.fetch')}{' '}
+                          {log.sourceCode || (log.sourceId != null ? `#${log.sourceId}` : '-')}
                         </span>
                       </div>
                       <div className="flex items-center space-x-3">

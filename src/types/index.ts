@@ -17,6 +17,7 @@ export interface NewsItem {
   platform: string
   sourceType: 'rss' | 'api' | 'topic'
   sourceId: number | null
+  sourceCode?: string | null
   sourceName?: string
   publishedAt: string | null
   fetchedAt: string
@@ -37,7 +38,12 @@ export interface NewsListResponse {
 }
 
 export interface DataSource {
-  id: number
+  /** RSS 源为数字 id；内置 API 源为 null（身份用 code） */
+  id: number | null
+  /** 内置 API 源为 true（配置随代码发布） */
+  builtin?: boolean
+  /** 内置 API 源的稳定 code */
+  code?: string | null
   name: string
   type: 'rest' | 'rss' | 'html'
   sourceType: 'rss' | 'api' | 'topic'
@@ -50,12 +56,13 @@ export interface DataSource {
   lastFetchAt: string | null
   lastError: string | null
   description: string | null
-  createdAt: string
-  updatedAt: string
+  createdAt: string | null
+  updatedAt: string | null
 }
 
 export interface DataSourceOption {
-  id: number
+  id: number | null
+  code?: string | null
   name: string
   sourceType: 'rss' | 'api' | 'topic'
   description: string | null
@@ -92,7 +99,8 @@ export interface LogItem {
 }
 
 export interface FetchLog extends LogItem {
-  sourceId: number
+  sourceId: number | null
+  sourceCode?: string | null
 }
 
 export interface CommunityAuthor {

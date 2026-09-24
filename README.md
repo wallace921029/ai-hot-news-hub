@@ -128,7 +128,7 @@ ai-hot-news-hub/
 
 ## Supported Data Sources
 
-See [`docs/public-api-doc.md`](docs/public-api-doc.md) for the full list of tested public APIs.
+See [`docs/api.md`](docs/api.md) for the full list of tested public APIs.
 
 **Chinese platforms:** Zhihu, Weibo, Bilibili, Toutiao, Thepaper, Douban, IT之家, 少数派, 36Kr, Baidu, etc.
 

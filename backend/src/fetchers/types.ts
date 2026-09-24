@@ -1,5 +1,8 @@
 export interface RawNewsItem {
-  sourceId: number
+  /** RSS 源 id（内置 API 源为 undefined，由抓取入口统一覆写） */
+  sourceId?: number
+  /** 内置 API 源 code（RSS 为 undefined，由抓取入口统一覆写） */
+  sourceCode?: string
   platform: string
   title: string
   url: string
@@ -16,7 +19,10 @@ export interface Fetcher {
 }
 
 export interface FetcherSource {
-  id: number
+  /** data_sources.id；内置 API 源为 undefined */
+  id?: number
+  /** 内置 API 源 code；RSS 为 undefined */
+  code?: string
   name: string
   url: string
   method?: 'GET' | 'POST'

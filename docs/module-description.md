@@ -1198,5 +1198,5 @@ interface ErrorResponse {
 
 - `docs/PRD.md` — 产品需求文档
 - `docs/plan.md` — 开发计划
-- `docs/public-api-doc.md` — 公开 API 文档
+- `docs/api.md` — 公开 API 文档
 - `docs/uml-modeling.md` — UML 建模文档

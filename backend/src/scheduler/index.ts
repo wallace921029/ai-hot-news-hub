@@ -6,12 +6,15 @@ import {
   systemConfig,
   aiLogs,
   errorAlerts,
+  sourceStates,
 } from '../db/schema.js'
 import { eq, and, inArray, count, sql } from 'drizzle-orm'
 import { RestFetcher } from '../fetchers/rest.js'
 import { RssFetcher } from '../fetchers/rss.js'
 import { HtmlFetcher } from '../fetchers/html.js'
 import type { Fetcher, RawNewsItem } from '../fetchers/types.js'
+import { builtinApiSources } from '../fetchers/api-sources.js'
+import type { ApiSourceDef } from '../fetchers/api-sources.js'
 import { checkAndCreateAlerts } from '../services/alerts.js'
 
 // ===== 常量 =====
@@ -25,6 +28,23 @@ const DEFAULT_INTERVAL_MIN = 30 // 默认刷新间隔（分钟）
 
 type Category = 'rss' | 'api'
 type InsertStatus = 'pending' | 'processed'
+
+/** 抓取目标：RSS（data_sources 行）与内置 API（api-sources 清单）统一表示 */
+export interface FetchTarget {
+  /** RSS：data_sources.id；内置 API 为 undefined */
+  id?: number
+  /** 内置 API：api-sources.ts 的 code；RSS 为 undefined */
+  code?: string
+  name: string
+  type: 'rest' | 'rss' | 'html'
+  sourceType: 'rss' | 'api' | 'topic'
+  url: string
+  method?: 'GET' | 'POST' | null
+  /** JSON 字符串（与 data_sources.headers 同格式） */
+  headers?: string | null
+  body?: string | null
+  parser?: string | null
+}
 
 // ===== 状态 =====
 let autoFetchEnabled = false
@@ -54,6 +74,34 @@ function getFetcher(type: string): Fetcher {
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+export function rssTargetFromRow(row: typeof dataSources.$inferSelect): FetchTarget {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    sourceType: row.sourceType || 'rss',
+    url: row.url,
+    method: row.method,
+    headers: row.headers,
+    body: row.body,
+    parser: row.parser,
+  }
+}
+
+export function builtinTargetFromDef(def: ApiSourceDef): FetchTarget {
+  return {
+    code: def.code,
+    name: def.name,
+    type: def.type,
+    sourceType: 'api',
+    url: def.url,
+    method: def.method || 'GET',
+    headers: def.headers ? JSON.stringify(def.headers) : null,
+    body: def.body || null,
+    parser: def.parser,
+  }
 }
 
 // 去重检查
@@ -91,7 +139,8 @@ async function saveNewsItems(
       }
 
       await db.insert(newsItems).values({
-        sourceId: item.sourceId,
+        sourceId: item.sourceId ?? null,
+        sourceCode: item.sourceCode ?? null,
         sourceType,
         platform: item.platform,
         title: item.title,
@@ -115,11 +164,37 @@ async function saveNewsItems(
   return savedCount
 }
 
-// 抓取单个数据源（含重试：总尝试 FETCH_ATTEMPTS 次，退避 RETRY_DELAYS_MS）
-export async function fetchSource(
-  source: typeof dataSources.$inferSelect,
-  opts?: { status?: InsertStatus }
+// 抓取结果落库后的状态回写（RSS → data_sources；内置 API → source_states）
+async function recordSourceState(
+  target: FetchTarget,
+  patch: { lastFetchAt?: Date; lastError?: string | null }
 ) {
+  if (target.id != null) {
+    await db
+      .update(dataSources)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(eq(dataSources.id, target.id))
+    return
+  }
+  if (target.code) {
+    const existing = await db
+      .select({ code: sourceStates.code })
+      .from(sourceStates)
+      .where(eq(sourceStates.code, target.code))
+      .limit(1)
+    if (existing.length === 0) {
+      await db.insert(sourceStates).values({ code: target.code, ...patch, updatedAt: new Date() })
+    } else {
+      await db
+        .update(sourceStates)
+        .set({ ...patch, updatedAt: new Date() })
+        .where(eq(sourceStates.code, target.code))
+    }
+  }
+}
+
+// 抓取单个数据源（含重试：总尝试 FETCH_ATTEMPTS 次，退避 RETRY_DELAYS_MS）
+export async function fetchSource(target: FetchTarget, opts?: { status?: InsertStatus }) {
   const startTime = Date.now()
   const insertStatus: InsertStatus = opts?.status ?? 'pending'
 
@@ -130,25 +205,33 @@ export async function fetchSource(
   for (let i = 0; i < FETCH_ATTEMPTS; i++) {
     attempts = i + 1
     try {
-      const fetcher = getFetcher(source.type)
-      const headers = source.headers ? JSON.parse(source.headers) : undefined
+      const fetcher = getFetcher(target.type)
+      const headers = target.headers ? JSON.parse(target.headers) : undefined
 
-      items = await fetcher.fetch({
-        id: source.id,
-        name: source.name,
-        url: source.url,
-        method: source.method || undefined,
+      const raw = await fetcher.fetch({
+        id: target.id,
+        code: target.code,
+        name: target.name,
+        url: target.url,
+        method: target.method || undefined,
         headers,
-        body: source.body || undefined,
-        parser: source.parser || undefined,
+        body: target.body || undefined,
+        parser: target.parser || undefined,
       })
+
+      // 统一覆写身份（解析器内部 stamp 的 sourceId 对内置源不适用）
+      items = raw.map((item) => ({
+        ...item,
+        sourceId: target.id,
+        sourceCode: target.code,
+      }))
       break
     } catch (error) {
       lastError = error
       const message = error instanceof Error ? error.message : '未知错误'
       if (i < FETCH_ATTEMPTS - 1) {
         console.warn(
-          `⚠️ 抓取失败（第 ${attempts}/${FETCH_ATTEMPTS} 次）: ${source.name} - ${message}，${RETRY_DELAYS_MS[i] / 1000}s 后重试`
+          `⚠️ 抓取失败（第 ${attempts}/${FETCH_ATTEMPTS} 次）: ${target.name} - ${message}，${RETRY_DELAYS_MS[i] / 1000}s 后重试`
         )
         await sleep(RETRY_DELAYS_MS[i])
       }
@@ -158,25 +241,19 @@ export async function fetchSource(
   const duration = Date.now() - startTime
 
   if (items) {
-    const savedCount = await saveNewsItems(items, source.sourceType || 'api', insertStatus)
+    const savedCount = await saveNewsItems(items, target.sourceType || 'api', insertStatus)
 
     await db.insert(fetchLogs).values({
-      sourceId: source.id,
+      sourceId: target.id ?? null,
+      sourceCode: target.code ?? null,
       status: 'success',
       duration,
       count: savedCount,
     })
 
-    await db
-      .update(dataSources)
-      .set({
-        lastFetchAt: new Date(),
-        lastError: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(dataSources.id, source.id))
+    await recordSourceState(target, { lastFetchAt: new Date(), lastError: null })
 
-    console.log(`✅ 抓取成功: ${source.name} (${savedCount} 条, ${duration}ms)`)
+    console.log(`✅ 抓取成功: ${target.name} (${savedCount} 条, ${duration}ms)`)
   } else {
     let errorMessage = lastError instanceof Error ? lastError.message : '未知错误'
     if (attempts > 1) {
@@ -185,23 +262,53 @@ export async function fetchSource(
 
     // 只记最终结果一行
     await db.insert(fetchLogs).values({
-      sourceId: source.id,
+      sourceId: target.id ?? null,
+      sourceCode: target.code ?? null,
       status: 'failed',
       duration,
       count: 0,
       error: errorMessage,
     })
 
-    await db
-      .update(dataSources)
-      .set({
-        lastError: errorMessage,
-        updatedAt: new Date(),
-      })
-      .where(eq(dataSources.id, source.id))
+    await recordSourceState(target, { lastError: errorMessage })
 
-    console.error(`❌ 抓取失败: ${source.name} - ${errorMessage}`)
+    console.error(`❌ 抓取失败: ${target.name} - ${errorMessage}`)
   }
+}
+
+/** 当前应抓取的目标列表：rss=DB 行；api=内置清单（+ 残留的 DB rest/html 行） */
+export async function listFetchTargets(category?: Category): Promise<FetchTarget[]> {
+  const targets: FetchTarget[] = []
+
+  const wantRss = !category || category === 'rss'
+  const wantApi = !category || category === 'api'
+
+  if (wantRss) {
+    const rows = await db
+      .select()
+      .from(dataSources)
+      .where(and(eq(dataSources.enabled, true), eq(dataSources.type, 'rss')))
+    targets.push(...rows.map(rssTargetFromRow))
+  }
+
+  if (wantApi) {
+    const states = await db.select().from(sourceStates)
+    const stateByCode = new Map(states.map((s) => [s.code, s]))
+    for (const def of builtinApiSources) {
+      const state = stateByCode.get(def.code)
+      if (!state || state.enabled) {
+        targets.push(builtinTargetFromDef(def))
+      }
+    }
+    // 防御：残留的 DB 内 API 行（迁移前的旧数据）一并抓取
+    const leftover = await db
+      .select()
+      .from(dataSources)
+      .where(and(eq(dataSources.enabled, true), inArray(dataSources.type, ['rest', 'html'])))
+    targets.push(...leftover.map(rssTargetFromRow))
+  }
+
+  return targets
 }
 
 // 抓取数据源；category 缺省时抓全部（手动"获取全部"）
@@ -209,27 +316,17 @@ export async function fetchAllSources(category?: Category) {
   const tag = category ? `[${category.toUpperCase()}] ` : ''
   console.log(`🔄 ${tag}开始抓取数据源...`)
 
-  const conditions = [eq(dataSources.enabled, true)]
-  if (category === 'rss') {
-    conditions.push(eq(dataSources.type, 'rss'))
-  } else if (category === 'api') {
-    conditions.push(inArray(dataSources.type, ['rest', 'html']))
-  }
+  const targets = await listFetchTargets(category)
 
-  const sources = await db
-    .select()
-    .from(dataSources)
-    .where(and(...conditions))
-
-  const batches: (typeof sources)[] = []
-  for (let i = 0; i < sources.length; i += CONCURRENCY) {
-    batches.push(sources.slice(i, i + CONCURRENCY))
+  const batches: FetchTarget[][] = []
+  for (let i = 0; i < targets.length; i += CONCURRENCY) {
+    batches.push(targets.slice(i, i + CONCURRENCY))
   }
   for (const batch of batches) {
-    await Promise.all(batch.map((source) => fetchSource(source)))
+    await Promise.all(batch.map((target) => fetchSource(target)))
   }
 
-  console.log(`✅ ${tag}抓取完成（${sources.length} 个源）`)
+  console.log(`✅ ${tag}抓取完成（${targets.length} 个源）`)
 
   try {
     await checkAndCreateAlerts()

@@ -145,6 +145,11 @@ const parsers: Record<string, HtmlParser> = {
   hyperai: hyperaiParser,
 }
 
+/** 校验内置源的 parser 键是否已注册（html 层） */
+export function hasHtmlParser(name: string): boolean {
+  return name in parsers
+}
+
 export class HtmlFetcher implements Fetcher {
   async fetch(source: FetcherSource): Promise<RawNewsItem[]> {
     const headers: Record<string, string> = {

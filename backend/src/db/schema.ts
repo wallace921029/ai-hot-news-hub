@@ -51,7 +51,10 @@ export const dataSources = sqliteTable('data_sources', {
 // 新闻条目表
 export const newsItems = sqliteTable('news_items', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  /** RSS 源关联 data_sources.id；内置 API 源为 null */
   sourceId: integer('source_id').references(() => dataSources.id),
+  /** 内置 API 源关联 api-sources.ts 的 code；RSS 为 null */
+  sourceCode: text('source_code'),
   sourceType: text('source_type', { enum: ['rss', 'api', 'topic'] })
     .notNull()
     .default('api'),
@@ -201,17 +204,30 @@ export const topics = sqliteTable('topics', {
     .default(sql`(unixepoch())`),
 })
 
-// 抓取日志表
+// 抓取日志表（source_id: RSS 源 / source_code: 内置 API 源，二选一）
 export const fetchLogs = sqliteTable('fetch_logs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  sourceId: integer('source_id')
-    .notNull()
-    .references(() => dataSources.id, { onDelete: 'cascade' }),
+  sourceId: integer('source_id').references(() => dataSources.id, { onDelete: 'cascade' }),
+  sourceCode: text('source_code'),
   status: text('status', { enum: ['success', 'failed'] }).notNull(),
   duration: integer('duration').notNull(), // 毫秒
   count: integer('count').notNull().default(0),
   error: text('error'),
   createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})
+
+// 内置 API 源运行状态表（配置在 fetchers/api-sources.ts，DB 只存状态）
+export const sourceStates = sqliteTable('source_states', {
+  code: text('code').primaryKey(), // 对应 ApiSourceDef.code
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  lastFetchAt: integer('last_fetch_at', { mode: 'timestamp' }),
+  lastError: text('last_error'),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),
 })
@@ -240,10 +256,11 @@ export const systemConfig = sqliteTable('system_config', {
     .default(sql`(unixepoch())`),
 })
 
-// 错误告警表
+// 错误告警表（source_id: RSS 源 / source_code: 内置 API 源）
 export const errorAlerts = sqliteTable('error_alerts', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   sourceId: integer('source_id').references(() => dataSources.id, { onDelete: 'cascade' }),
+  sourceCode: text('source_code'),
   alertType: text('alert_type', { enum: ['consecutive_failures', 'error_spike'] }).notNull(),
   message: text('message').notNull(),
   details: text('details'), // JSON string

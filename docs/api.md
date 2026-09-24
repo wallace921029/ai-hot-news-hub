@@ -1,10 +1,15 @@
-# 新增领域公开 API 接口文档
+# 公开 API 接口文档
 
-> 最后测试：2026-09-23
+> 最后测试：2026-09-23（2026-09-20 首轮结论已并入，原 `public-api-doc.md` 已删除）
 > 测试标准：HTTP 200 且返回真实结构化数据（JSON/XML 含有效条目），样本摘录自实测响应
-> 范围说明：本文档是 `public-api-doc.md`（社交热榜 / 开发者社区 / AI 媒体）的**领域扩展**，只收录原文档未覆盖的新领域；已收录接口不重复列出
-> 本轮发起约 90 次请求（含端点复测），收录实测通过的 **30 条接口**
+> 范围说明：本文档汇总**全部**可用公开 API 订阅；RSS/Atom 形态源见 [rss-cn.md](./rss-cn.md) / [rss-en.md](./rss-en.md)
+> 收录实测通过的 **47 条接口**，另存档 15 条不可用端点
 > 其中 RSS/Atom 形态且经 `RssFetcher` 实测可解析的 7 源（Slashdot、Stack Overflow 博客、TMZ、Page Six、Steam 新闻、中新网、DW 中文）已归入 [rss-cn.md](./rss-cn.md) / [rss-en.md](./rss-en.md)
+>
+> **接入说明（方案 C「代码即订阅」）**：本清单中已接入的 API 源以代码配置唯一存在 ——
+> 写死在 `backend/src/fetchers/api-sources.ts`（40 个，含稳定 `code`、url、method、headers、parser）。
+> 数据库不再保存其配置，仅保留运行状态（`source_states` 表，按 `code`）；
+> 新闻/抓取日志/告警通过 `source_code` 列归属来源。管理端只能开关/手动抓取内置源，新增内置源 = 改代码发版。
 
 ---
 
@@ -35,31 +40,56 @@
 
 ---
 
-## 二、科技 / 开发者（原清单之外新增）
+## 二、国内社交 / 资讯（含热榜）
 
 ### ✅ 可用
 
-| 平台                 | API 端点                                                                          | 方法 | 认证 | 备注                                      |
-| -------------------- | --------------------------------------------------------------------------------- | ---- | ---- | ----------------------------------------- |
-| **Hacker News 官方** | `https://hacker-news.firebaseio.com/v0/topstories.json`（+ `/v0/item/{id}.json`） | GET  | 无需 | 官方 Firebase API，先取 story id 再取详情 |
-| **Lobsters**         | `https://lobste.rs/hottest.json`                                                  | GET  | 无需 | 技术书签热帖，返回 title/url/score        |
-| **dev.to**           | `https://dev.to/api/articles?top=1&per_page=5`                                    | GET  | 无需 | 按天热门文章，含标题/点赞/正文            |
-| **arXiv**            | `http://export.arxiv.org/api/query?search_query=cat:cs.AI&max_results=3`          | GET  | 无需 | Atom 预印本，学术 AI 论文追踪             |
+| 平台             | API 端点                                                           | 方法 | 认证                      | 备注                                                             |
+| ---------------- | ------------------------------------------------------------------ | ---- | ------------------------- | ---------------------------------------------------------------- |
+| **知乎热榜**     | `https://api.zhihu.com/topstory/hot-list?limit=50&reverse_order=0` | GET  | 无需                      | 返回 50 条热榜，含标题、热度、URL                                |
+| **微博热搜**     | `https://weibo.com/ajax/side/hotSearch`                            | GET  | 需要 User-Agent + Referer | 返回 50 条热搜，含关键词、热度、标签                             |
+| **B站热搜**      | `https://api.bilibili.com/x/web-interface/search/square?limit=30`  | GET  | 无需                      | 返回热搜关键词及热度分数                                         |
+| **今日头条热榜** | `https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc`   | GET  | 无需                      | 返回热榜列表，含标题、URL、热度、分类                            |
+| **百度热搜**     | `https://top.baidu.com/board?tab=realtime`                         | GET  | 无需                      | 返回 HTML，需解析 `word` 字段                                    |
+| **36氪热榜**     | `https://gateway.36kr.com/api/mis/nav/home/nav/rank/hot`           | POST | 无需                      | Body: `{"partner_id":"wap","param":{"siteId":1,"platformId":2}}` |
+| **知乎日报**     | `https://news-at.zhihu.com/api/4/news/latest`                      | GET  | 无需                      | 返回每日最新文章列表                                             |
+| **澎湃新闻**     | `https://cache.thepaper.cn/contentapi/wwwIndex/rightSidebar`       | GET  | 无需                      | 返回侧边栏热门文章                                               |
 
 ---
 
-## 三、AI（模型 / 论文）
+## 三、科技 / 开发者
 
 ### ✅ 可用
 
-| 平台                   | API 端点                                               | 方法 | 认证 | 备注                              |
-| ---------------------- | ------------------------------------------------------ | ---- | ---- | --------------------------------- |
-| **OpenRouter**         | `https://openrouter.ai/api/v1/models`                  | GET  | 无需 | 455+ 模型列表，含定价与上下文长度 |
-| **HuggingFace Spaces** | `https://huggingface.co/api/spaces?sort=likes&limit=3` | GET  | 无需 | 热门应用，含点赞数                |
+| 平台                 | API 端点                                                                                    | 方法 | 认证 | 备注                                                          |
+| -------------------- | ------------------------------------------------------------------------------------------- | ---- | ---- | ------------------------------------------------------------- |
+| **Hacker News 官方** | `https://hacker-news.firebaseio.com/v0/topstories.json`（+ `/v0/item/{id}.json`）           | GET  | 无需 | 官方 Firebase API，先取 story id 再取详情                     |
+| **Lobsters**         | `https://lobste.rs/hottest.json`                                                            | GET  | 无需 | 技术书签热帖，返回 title/url/score                            |
+| **dev.to**           | `https://dev.to/api/articles?top=1&per_page=5`                                              | GET  | 无需 | 按天热门文章，含标题/点赞/正文                                |
+| **arXiv**            | `https://export.arxiv.org/api/query?search_query=cat:cs.AI&max_results=3`                   | GET  | 无需 | Atom 预印本，学术 AI 论文追踪                                 |
+| **掘金**             | `https://api.juejin.cn/recommend_api/v1/article/recommend_all_feed`                         | POST | 无需 | Body: `{"cursor":"0","limit":5}`，返回推荐文章                |
+| **CSDN 博客**        | `https://blog.csdn.net/phoenix/web/blog/hot-rank?page=0&pageSize=5&type=hot`                | GET  | 无需 | 返回热榜文章，含标题、阅读量、评论数                          |
+| **GitHub**           | `https://api.github.com/search/repositories?q=stars:>1000&sort=stars&order=desc&per_page=5` | GET  | 无需 | 搜索热门仓库，含 star 数、描述等                              |
+| **少数派**           | `https://sspai.com/api/v1/article/tag/info/get?limit=5&offset=0&tag=hot`                    | GET  | 无需 | 返回热榜文章（同源另有 RSS，见 [rss-cn.md](./rss-cn.md)）     |
+| **IT之家**           | `https://api.ithome.com/xml/newslist/news.xml`                                              | GET  | 无需 | XML 格式新闻列表（同源另有 RSS，见 [rss-cn.md](./rss-cn.md)） |
 
 ---
 
-## 四、电影 / 影视
+## 四、AI（模型 / 论文）
+
+### ✅ 可用
+
+| 平台                   | API 端点                                                       | 方法 | 认证 | 备注                              |
+| ---------------------- | -------------------------------------------------------------- | ---- | ---- | --------------------------------- |
+| **OpenRouter**         | `https://openrouter.ai/api/v1/models`                          | GET  | 无需 | 455+ 模型列表，含定价与上下文长度 |
+| **HuggingFace Spaces** | `https://huggingface.co/api/spaces?sort=likes&limit=3`         | GET  | 无需 | 热门应用，含点赞数                |
+| **HuggingFace 模型**   | `https://huggingface.co/api/models?sort=likes&limit=5`         | GET  | 无需 | 热门模型列表，含下载量、点赞数    |
+| **机器之心**           | `https://www.jiqizhixin.com/api/v1/articles?page=1&per_page=5` | GET  | 无需 | 返回 AI/ML 文章列表               |
+| **超神经**             | `https://hyper.ai/api/v1/articles?page=1&limit=5`              | GET  | 无需 | 返回 HTML，需解析                 |
+
+---
+
+## 五、电影 / 影视
 
 ### ✅ 可用
 
@@ -76,7 +106,7 @@
 
 ---
 
-## 五、娱乐 / 八卦
+## 六、娱乐 / 八卦
 
 ### ✅ 可用
 
@@ -86,7 +116,7 @@
 
 ---
 
-## 六、新闻 / 资讯（国际 + 中文，原清单之外）
+## 七、新闻 / 资讯（国际 + 中文）
 
 ### ✅ 可用
 
@@ -98,7 +128,7 @@
 
 ---
 
-## 七、音乐
+## 八、音乐
 
 ### ✅ 可用
 
@@ -111,7 +141,7 @@
 
 ---
 
-## 八、游戏
+## 九、游戏
 
 ### ✅ 可用
 
@@ -125,7 +155,7 @@
 
 ---
 
-## 九、体育
+## 十、体育
 
 ### ✅ 可用
 
@@ -136,20 +166,20 @@
 
 ---
 
-## 十、财经 / 行情
+## 十一、财经 / 行情
 
 ### ✅ 可用
 
-| 平台         | API 端点                                                                                                                                          | 方法 | 认证                                      | 备注                                               |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | ----------------------------------------- | -------------------------------------------------- |
-| **新浪行情** | `https://hq.sinajs.cn/list=sh000001`                                                                                                              | GET  | 需 `Referer: https://finance.sina.com.cn` | 实时指数/个股；**响应为 GBK 编码**，多标的逗号分隔 |
-| **东方财富** | `https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=5&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23&fields=f2,f12,f14,f3` | GET  | 无需                                      | A 股涨幅榜，含代码/名称/涨幅                       |
+| 平台         | API 端点                                                                                                                                  | 方法 | 认证                                      | 备注                                               |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ---- | ----------------------------------------- | -------------------------------------------------- |
+| **新浪行情** | `https://hq.sinajs.cn/list=sh000001`                                                                                                      | GET  | 需 `Referer: https://finance.sina.com.cn` | 实时指数/个股；**响应为 GBK 编码**，多标的逗号分隔 |
+| **东方财富** | `push2.eastmoney.com/api/qt/clist/get?pn=1&pz=5&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23&fields=f2,f12,f14,f3` | GET  | 无需                                      | A 股涨幅榜，含代码/名称/涨幅                       |
 
 样本（新浪行情实测，GBK 解码后）：`hq_str_sh000001="上证指数,3951.36,3952.13,3936.52,..."`
 
 ---
 
-## 十一、加密行情
+## 十二、加密行情
 
 ### ✅ 可用
 
@@ -160,7 +190,7 @@
 
 ---
 
-## 十二、天气
+## 十三、天气
 
 ### ✅ 可用
 
@@ -170,25 +200,47 @@
 
 ---
 
-## 十三、图书 / 阅读
+## 十四、图书 / 阅读
 
 ### ✅ 可用
 
 | 平台             | API 端点                                      | 方法 | 认证 | 备注                           |
 | ---------------- | --------------------------------------------- | ---- | ---- | ------------------------------ |
 | **Open Library** | `https://openlibrary.org/subjects/scifi.json` | GET  | 无需 | 主题书目（封面/出版信息/热度） |
+| **微信读书**     | `https://weread.qq.com/web/category/rising`   | GET  | 无需 | 返回飙升榜                     |
 
 ---
 
 ## 测试汇总
 
-| 结果    | 收录数 | 说明                    |
-| ------- | ------ | ----------------------- |
-| ✅ 可用 | 30     | 实测 200 且返回真实条目 |
+| 结果      | 收录数 | 说明                                 |
+| --------- | ------ | ------------------------------------ |
+| ✅ 可用   | 47     | 实测 200 且返回真实条目              |
+| ❌ 不可用 | 15     | 端点受保护/已失效/需渲染，存档见下文 |
+
+### ❌ 不可用存档（原 `public-api-doc.md` 测试结论，2026-09-20）
+
+| 平台                            | 状态          | 原因                                        |
+| ------------------------------- | ------------- | ------------------------------------------- |
+| **小红书**                      | 需要签名/认证 | API 保护严格，多个端点返回 404 或空数据     |
+| **抖音**                        | 需要签名/认证 | API 保护严格，无公开可用端点                |
+| **微信 24h 热文**               | 无官方 API    | 第三方聚合站不稳定；搜狗微信搜索端点已变更  |
+| **X (Twitter)**                 | 需 OAuth 认证 | 官方 API 返回 401；Nitter 已关闭            |
+| **Instagram**                   | 需认证        | `?__a=1` 端点已被封禁；Graph API 需权限申请 |
+| **Facebook**                    | 需登录态      | 无公开趋势 API                              |
+| **大众点评**                    | 企业合作模式  | 需企业资质入驻审核，无个人开发者 API        |
+| **Readhub**                     | API 已关闭    | 所有端点返回 404                            |
+| **AIbase**                      | 无公开 API    | 多个端点返回 404                            |
+| **MIT Technology Review China** | SPA 渲染      | 返回 HTML 外壳，需 JS 渲染才能获取内容      |
+| **虎扑**                        | WAF 拦截      | 返回 405 拦截页面                           |
+| **豆瓣小组**                    | 需要 apikey   | 返回 "apikey is required"                   |
+| **果壳**                        | 参数问题      | 400 Bad Request                             |
+| **虎嗅**                        | 端点变更      | 返回 404                                    |
+| **百度贴吧**                    | 返回 HTML     | 热议页面需 JS 渲染                          |
 
 ### 接入建议（按优先级）
 
-1. **热榜聚合首选 uapis**（免注册、多平台、有热度值）
+1. **热榜聚合首选 uapis**（免注册、多平台、有热度值）；知乎/微博等直连端点见「国内社交 / 资讯」
 2. **电影用豆瓣 rexxar**（记得带 `Referer: m.douban.com`），**剧集排期用 TVmaze**
 3. **八卦：英文走 [rss-en.md](./rss-en.md) 的 TMZ/Page Six 订阅源**；中文八卦走微博/抖音热榜（uapis）
 4. **音乐从网易云 `/api/toplist` 入口**拿全部榜单 id，再拉详情

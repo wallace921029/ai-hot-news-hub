@@ -4,6 +4,7 @@ import { db } from '../../db/index.js'
 import { newsItems, dataSources } from '../../db/schema.js'
 import { eq, desc, sql, inArray, and, like } from 'drizzle-orm'
 import { fetchAllSources } from '../../scheduler/index.js'
+import { resolveSourceName } from '../news.js'
 
 const updateSchema = z.object({
   status: z.enum(['pending', 'processed', 'failed']).optional(),
@@ -19,6 +20,7 @@ export async function contentRoutes(app: FastifyInstance) {
     const sourceType = query.sourceType || undefined
     const search = query.search?.trim() || undefined
     const sourceId = parseInt(query.sourceId) || undefined
+    const sourceCode = query.sourceCode?.trim() || undefined
     const offset = (page - 1) * pageSize
 
     const conditions = []
@@ -34,6 +36,9 @@ export async function contentRoutes(app: FastifyInstance) {
     if (sourceId) {
       conditions.push(eq(newsItems.sourceId, sourceId))
     }
+    if (sourceCode) {
+      conditions.push(eq(newsItems.sourceCode, sourceCode))
+    }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined
 
@@ -46,6 +51,7 @@ export async function contentRoutes(app: FastifyInstance) {
       .select({
         id: newsItems.id,
         sourceId: newsItems.sourceId,
+        sourceCode: newsItems.sourceCode,
         sourceName: dataSources.name,
         sourceType: newsItems.sourceType,
         platform: newsItems.platform,
@@ -68,8 +74,16 @@ export async function contentRoutes(app: FastifyInstance) {
       .limit(pageSize)
       .offset(offset)
 
+    const allSources = await db
+      .select({ id: dataSources.id, name: dataSources.name })
+      .from(dataSources)
+    const sourceMap = new Map(allSources.map((s) => [s.id, s.name]))
+
     return {
-      items,
+      items: items.map((item) => ({
+        ...item,
+        sourceName: item.sourceName ?? resolveSourceName(item.sourceId, item.sourceCode, sourceMap),
+      })),
       pagination: {
         page,
         pageSize,
