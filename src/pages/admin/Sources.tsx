@@ -186,6 +186,18 @@ export function AdminSources() {
     },
   })
 
+  const toggleRssMutation = useMutation({
+    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
+      api.updateSource(id, { enabled }),
+    onSuccess: () => {
+      toast.success(t('admin.sources.updateSuccess'))
+      queryClient.invalidateQueries({ queryKey: ['admin-sources'] })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : t('admin.sources.updateFailed'))
+    },
+  })
+
   const handleFetch = (e: React.MouseEvent, source: DataSource) => {
     e.preventDefault()
     e.stopPropagation()
@@ -393,6 +405,15 @@ export function AdminSources() {
                       <span className="text-xs text-muted-foreground mr-2">
                         {getTimeAgo(source.lastFetchAt)}
                       </span>
+                      <Switch
+                        checked={source.enabled}
+                        disabled={toggleRssMutation.isPending}
+                        onCheckedChange={(checked) =>
+                          source.id != null &&
+                          toggleRssMutation.mutate({ id: source.id, enabled: checked })
+                        }
+                        aria-label={t('admin.sources.enabled')}
+                      />
                       <Button
                         type="button"
                         variant="ghost"
