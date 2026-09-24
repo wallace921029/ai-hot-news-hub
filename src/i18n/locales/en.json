@@ -95,7 +95,15 @@
     "hotScore": "Hot Score",
     "backToList": "Back to List",
     "notFound": "Content not found",
-    "author": "Author"
+    "author": "Author",
+    "comments": "Comments",
+    "commentPlaceholder": "Share your thoughts… (@ the AI name to summon a reply)",
+    "replyPlaceholder": "Reply to @{{username}}…",
+    "replyingTo": "Replying to @{{username}}",
+    "commentSuccess": "Comment posted",
+    "commentFailed": "Failed to post comment",
+    "noComments": "No comments yet, be the first",
+    "reply": "Reply"
   },
   "favorites": {
     "title": "My Favorites",
@@ -215,7 +223,10 @@
     "quote": "Quote",
     "codeBlock": "Code block",
     "link": "Link",
-    "emoji": "Insert emoji"
+    "emoji": "Insert Emoji"
+  },
+  "ai": {
+    "quotaExhausted": "AI reply quota exhausted for today, try again tomorrow"
   },
   "admin": {
     "dashboard": {
@@ -324,7 +335,18 @@
       "saveSuccess": "Config saved",
       "saveFailed": "Save failed",
       "modelsFetchFailed": "Failed to fetch models",
-      "noModels": "No models found"
+      "noModels": "No models found",
+      "agentEnabled": "AI Agent",
+      "agentEnabledDesc": "When on, the agent greets new posts/moments and replies to @ mentions (API Key required)",
+      "agentNickname": "Agent Nickname",
+      "agentNicknameDesc": "The name users @. Must not collide with user nicknames; renaming updates all past comments automatically",
+      "agentPersona": "Agent Persona",
+      "agentPersonaDesc": "System prompt, takes effect immediately",
+      "agentMaxTokens": "Max Reply Length (tokens)",
+      "agentTemperature": "Temperature (0-2, higher is more creative)",
+      "agentThrottle": "Daily @ Reply Throttle",
+      "agentThrottleDesc": "When on, each user is limited per day, 0 means unlimited (manual @ only)",
+      "agentDailyLimit": "@ Replies Per User Per Day"
     },
     "logs": {
       "title": "Logs",

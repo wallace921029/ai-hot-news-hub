@@ -15,6 +15,7 @@ import { eq, inArray, sql } from 'drizzle-orm'
  * 3. 旧行 data_sources(source_type='api') 的新闻/日志/告警迁到 code 身份并删除这些行
  * 4. 为每个内置源补齐 source_states 行（不覆盖已有 enabled 等用户状态）
  * 5. 清理已从清单移除的源（source_states + 关联新闻/日志/告警）
+ * 6. 建新闻评论 / AI 智能体日志表；确保 ai_agent 用户行存在且昵称与配置同步
  */
 
 async function getTableColumns(table: string): Promise<Array<{ name: string; notnull: number }>> {
@@ -188,4 +189,41 @@ export async function migrateBuiltinApiSources(): Promise<void> {
       `🔧 迁移: 已下线 ${orphanCodes.length} 个内置源并清理关联数据: ${orphanCodes.join(', ')}`
     )
   }
+
+  // 6. 新闻评论 / AI 智能体日志表（旧库补建；新库由 db:push 建）
+  await db.run(
+    sql.raw(`CREATE TABLE IF NOT EXISTS news_comments (
+      "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+      "news_item_id" integer NOT NULL,
+      "user_id" integer NOT NULL,
+      "parent_comment_id" integer,
+      "content" text NOT NULL,
+      "like_count" integer DEFAULT 0 NOT NULL,
+      "created_at" integer DEFAULT (unixepoch()) NOT NULL,
+      FOREIGN KEY ("news_item_id") REFERENCES "news_items"("id") ON UPDATE no action ON DELETE no action,
+      FOREIGN KEY ("user_id") REFERENCES "users"("id") ON UPDATE no action ON DELETE no action
+    )`)
+  )
+  await db.run(
+    sql.raw(`CREATE TABLE IF NOT EXISTS ai_agent_logs (
+      "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+      "target_type" text NOT NULL,
+      "target_id" integer NOT NULL,
+      "trigger" text NOT NULL,
+      "user_id" integer,
+      "status" text DEFAULT 'pending' NOT NULL,
+      "duration" integer DEFAULT 0 NOT NULL,
+      "tokens_used" integer,
+      "error" text,
+      "created_at" integer DEFAULT (unixepoch()) NOT NULL,
+      FOREIGN KEY ("user_id") REFERENCES "users"("id") ON UPDATE no action ON DELETE no action
+    )`)
+  )
+
+  // 7. AI 智能体用户行：不存在则创建（删了自动重建），昵称恒与配置同步
+  const { ensureAgentUser, syncAgentNickname, getAgentConfig } =
+    await import('../services/ai-agent.js')
+  await ensureAgentUser()
+  const agentConfig = await getAgentConfig()
+  await syncAgentNickname(agentConfig.nickname)
 }

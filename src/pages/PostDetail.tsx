@@ -128,8 +128,9 @@ export function PostDetailPage() {
     mutationFn: () =>
       api.createCommunityComment(postId, commentInput.trim(), replyTarget?.parentId ?? undefined),
     onMutate: () => setSendState('sending'),
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success(t('community.commentSuccess'))
+      if (data?.aiQuotaExhausted) toast.warning(t('ai.quotaExhausted'))
       setCommentInput('')
       if (!replyTarget) setCommentPage(1)
       setReplyTarget(null)

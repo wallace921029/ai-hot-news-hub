@@ -95,7 +95,15 @@
     "hotScore": "热度",
     "backToList": "返回列表",
     "notFound": "内容不存在",
-    "author": "作者"
+    "author": "作者",
+    "comments": "评论",
+    "commentPlaceholder": "聊聊你的看法…（@智能体名 可召唤 AI 回复）",
+    "replyPlaceholder": "回复 @{{username}}…",
+    "replyingTo": "正在回复 @{{username}}",
+    "commentSuccess": "评论已发送",
+    "commentFailed": "评论发送失败",
+    "noComments": "还没有评论，来抢沙发",
+    "reply": "回复"
   },
   "favorites": {
     "title": "我的收藏",
@@ -217,6 +225,9 @@
     "link": "链接",
     "emoji": "插入表情"
   },
+  "ai": {
+    "quotaExhausted": "AI 今日回复额度已用完，明天再来"
+  },
   "admin": {
     "dashboard": {
       "title": "仪表盘",
@@ -324,7 +335,18 @@
       "saveSuccess": "配置已保存",
       "saveFailed": "保存失败",
       "modelsFetchFailed": "获取模型列表失败",
-      "noModels": "未找到可用模型"
+      "noModels": "未找到可用模型",
+      "agentEnabled": "AI 智能体",
+      "agentEnabledDesc": "开启后，智能体将主动欢迎新帖/新动态，并响应 @ 它的评论（需先配置 API Key）",
+      "agentNickname": "智能体昵称",
+      "agentNicknameDesc": "用户 @ 时用的名字，不可与用户昵称重复；改名后历史评论作者名自动跟随",
+      "agentPersona": "智能体人设",
+      "agentPersonaDesc": "系统提示词，改完即生效",
+      "agentMaxTokens": "回复长度上限（tokens）",
+      "agentTemperature": "Temperature（0-2，越大越发散）",
+      "agentThrottle": "每日 @ 回复限流",
+      "agentThrottleDesc": "开启后每人每天最多触发限定次数，0 为不限（仅手动 @ 计数）",
+      "agentDailyLimit": "每人每日 @ 次数"
     },
     "logs": {
       "title": "日志查看",

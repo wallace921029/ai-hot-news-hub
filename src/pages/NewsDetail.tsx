@@ -1,10 +1,23 @@
 import { useParams, useNavigate } from 'react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/services/api'
+import { useUserStore } from '@/stores/user'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Pagination } from '@/components/Pagination'
+import { UserAvatar } from '@/components/UserAvatar'
 import { motion, AnimatePresence } from 'framer-motion'
 import { pageTransition } from '@/lib/animations'
 import {
@@ -17,17 +30,36 @@ import {
   User,
   BarChart3,
   Info,
+  MessageSquare,
+  Reply,
+  Send,
+  Trash2,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import DOMPurify from 'dompurify'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { NewsComment } from '@/types'
+
+const COMMENT_PAGE_SIZE = 20
 
 export function NewsDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { user, isAdmin } = useUserStore()
+  const newsId = Number(id)
+
+  const [commentPage, setCommentPage] = useState(1)
+  const [commentInput, setCommentInput] = useState('')
+  const [replyTarget, setReplyTarget] = useState<{ parentId: number; username: string } | null>(
+    null
+  )
+  const [sending, setSending] = useState(false)
+  const [pendingDeleteCommentId, setPendingDeleteCommentId] = useState<number | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const {
     data: item,
@@ -47,6 +79,42 @@ export function NewsDetailPage() {
     },
     onError: () => toast.error(t('home.favoriteFailed')),
   })
+
+  const { data: commentsData } = useQuery({
+    queryKey: ['news-comments', newsId, commentPage],
+    queryFn: () => api.getNewsComments(newsId, commentPage, COMMENT_PAGE_SIZE),
+    enabled: !!newsId,
+  })
+
+  const createComment = useMutation({
+    mutationFn: () =>
+      api.createNewsComment(newsId, commentInput.trim(), replyTarget?.parentId ?? undefined),
+    onMutate: () => setSending(true),
+    onSuccess: (data) => {
+      toast.success(t('newsDetail.commentSuccess'))
+      if (data?.aiQuotaExhausted) toast.warning(t('ai.quotaExhausted'))
+      setCommentInput('')
+      setReplyTarget(null)
+      if (commentPage !== 1) setCommentPage(1)
+      setSending(false)
+      queryClient.invalidateQueries({ queryKey: ['news-comments', newsId] })
+    },
+    onError: (e: Error) => {
+      setSending(false)
+      toast.error(e.message || t('newsDetail.commentFailed'))
+    },
+  })
+
+  const deleteComment = useMutation({
+    mutationFn: (commentId: number) => api.deleteNewsComment(commentId),
+    onSuccess: () => {
+      toast.success(t('common.success'))
+      queryClient.invalidateQueries({ queryKey: ['news-comments', newsId] })
+    },
+    onError: () => toast.error(t('common.failed')),
+  })
+
+  const canSend = commentInput.trim().length > 0 && !sending
 
   const formatTime = (dateStr: string | null) => {
     if (!dateStr) return '-'
@@ -216,6 +284,192 @@ export function NewsDetailPage() {
             {t('home.favorited')}
           </Button>
         </div>
+
+        {/* Comments */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 shrink-0" />
+              {t('newsDetail.comments')}
+              {commentsData?.pagination && (
+                <span className="text-xs font-normal text-muted-foreground">
+                  {commentsData.pagination.total}
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!commentsData?.items?.length ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                {t('newsDetail.noComments')}
+              </p>
+            ) : (
+              <div>
+                {commentsData.items.map((comment: NewsComment, index: number) => {
+                  const name = comment.author?.nickname?.trim() || comment.author?.username || '?'
+                  const canDelete = comment.userId === user?.id || isAdmin
+                  const floor = (commentPage - 1) * COMMENT_PAGE_SIZE + index + 1
+                  const replies = comment.replies || []
+                  return (
+                    <div key={comment.id} className="flex gap-3 py-4 border-b last:border-0">
+                      <UserAvatar
+                        avatar={comment.author?.avatar}
+                        username={comment.author?.username || '?'}
+                        size={32}
+                        className="mt-0.5 shrink-0 self-start"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="font-medium text-foreground/85">{name}</span>
+                          <span className="text-muted-foreground">
+                            {comment.createdAt && new Date(comment.createdAt).toLocaleString()}
+                          </span>
+                          <span className="ml-auto tabular-nums text-muted-foreground/70 shrink-0">
+                            {t('community.floor', { n: floor })}
+                          </span>
+                        </div>
+                        <p className="text-sm text-foreground/90 mt-1.5 whitespace-pre-wrap leading-relaxed">
+                          {comment.content}
+                        </p>
+                        <div className="flex items-center gap-1 mt-1.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs rounded-full text-muted-foreground"
+                            onClick={() => {
+                              setReplyTarget({ parentId: comment.id, username: name })
+                              textareaRef.current?.focus()
+                            }}
+                          >
+                            <Reply className="w-3.5 h-3.5 mr-1" />
+                            {t('newsDetail.reply')}
+                          </Button>
+                          {canDelete && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs rounded-full text-muted-foreground/70 hover:text-destructive"
+                              onClick={() => setPendingDeleteCommentId(comment.id)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mr-1" />
+                              {t('common.delete')}
+                            </Button>
+                          )}
+                        </div>
+                        {replies.length > 0 && (
+                          <div className="mt-3 space-y-3 rounded-xl bg-muted/40 p-3">
+                            {replies.map((reply) => {
+                              const rName =
+                                reply.author?.nickname?.trim() || reply.author?.username || '?'
+                              const rCanDelete = reply.userId === user?.id || isAdmin
+                              return (
+                                <div key={reply.id} className="flex gap-2">
+                                  <UserAvatar
+                                    avatar={reply.author?.avatar}
+                                    username={reply.author?.username || '?'}
+                                    size={24}
+                                    className="mt-0.5 shrink-0 self-start"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 text-xs">
+                                      <span className="font-medium text-foreground/85">
+                                        {rName}
+                                      </span>
+                                      <span className="text-muted-foreground">
+                                        {reply.createdAt &&
+                                          new Date(reply.createdAt).toLocaleString()}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm text-foreground/85 mt-1 whitespace-pre-wrap leading-relaxed">
+                                      <span className="text-primary font-medium">@{name} </span>
+                                      {reply.content}
+                                    </p>
+                                    {rCanDelete && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 px-2 text-xs rounded-full text-muted-foreground/70 hover:text-destructive mt-1"
+                                        onClick={() => setPendingDeleteCommentId(reply.id)}
+                                      >
+                                        <Trash2 className="w-3 h-3 mr-1" />
+                                        {t('common.delete')}
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {commentsData && commentsData.pagination.totalPages > 1 && (
+              <div className="mt-2">
+                <Pagination
+                  page={commentPage}
+                  totalPages={commentsData.pagination.totalPages}
+                  total={commentsData.pagination.total}
+                  onPageChange={setCommentPage}
+                />
+              </div>
+            )}
+
+            {/* Composer */}
+            <div className="flex gap-3 mt-6">
+              <UserAvatar
+                avatar={user?.avatar}
+                username={user?.username || '?'}
+                size={32}
+                className="mt-1 shrink-0 self-start"
+              />
+              <div className="flex-1">
+                {replyTarget && (
+                  <div className="flex items-center gap-2 mb-2 text-xs">
+                    <span className="text-muted-foreground">
+                      {t('newsDetail.replyingTo', { username: replyTarget.username })}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setReplyTarget(null)}
+                      className="inline-flex items-center justify-center h-5 w-5 rounded-full hover:bg-muted text-muted-foreground"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+                <textarea
+                  ref={textareaRef}
+                  value={commentInput}
+                  maxLength={2000}
+                  rows={3}
+                  placeholder={
+                    replyTarget
+                      ? t('newsDetail.replyPlaceholder', { username: replyTarget.username })
+                      : t('newsDetail.commentPlaceholder')
+                  }
+                  onChange={(e) => setCommentInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && canSend) {
+                      createComment.mutate()
+                    }
+                  }}
+                  className="flex min-h-[96px] w-full rounded-xl border border-input bg-muted/40 px-3.5 py-2.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:bg-background transition-colors disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+                />
+                <div className="flex justify-end mt-2">
+                  <Button size="sm" disabled={!canSend} onClick={() => createComment.mutate()}>
+                    <Send className="w-3.5 h-3.5 mr-1.5" />
+                    {t('common.submit')}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </motion.div>
 
       {/* Floating action buttons */}
@@ -258,6 +512,31 @@ export function NewsDetailPage() {
           </div>
         )}
       </AnimatePresence>
+      <AlertDialog
+        open={pendingDeleteCommentId !== null}
+        onOpenChange={(o) => {
+          if (!o) setPendingDeleteCommentId(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('community.commentDeleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('community.commentDeleteConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (pendingDeleteCommentId !== null) deleteComment.mutate(pendingDeleteCommentId)
+                setPendingDeleteCommentId(null)
+              }}
+            >
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

@@ -5,6 +5,17 @@ import { communityPosts, communityComments, communityLikes, users } from '../db/
 import { eq, and, desc, asc, sql, like, or, isNull, inArray } from 'drizzle-orm'
 import { authMiddleware } from '../middleware/auth.js'
 import { cleanupUploadsByOriginalUrls, extractOriginalUrlsFromHtml } from '../utils/uploads.js'
+import {
+  checkProactiveAllowed,
+  checkMentionAllowed,
+  containsMention,
+  getAgentNickname,
+  getDisplayName,
+  reserveMentionLog,
+  reserveProactiveLog,
+  runMentionReply,
+  runProactiveReply,
+} from '../services/ai-agent.js'
 
 const createPostSchema = z.object({
   title: z.string().trim().min(1, '标题不能为空').max(100, '标题最多 100 字'),
@@ -143,6 +154,22 @@ export async function communityRoutes(app: FastifyInstance) {
         content: parsed.data.content,
       })
       .returning()
+
+    // AI 智能体：新帖主动评论一条（正文里的 @ 只走这一条，不双重回复）
+    const proactive = await checkProactiveAllowed(request.user.userId)
+    if (proactive.ok && proactive.config) {
+      const logId = await reserveProactiveLog('post', post.id, request.user.userId)
+      runProactiveReply({
+        logId,
+        config: proactive.config,
+        agentId: proactive.agentId,
+        targetType: 'post',
+        postId: post.id,
+        publisherName: '',
+        title: post.title,
+        content: post.content,
+      })
+    }
 
     return { success: true, post }
   })
@@ -520,7 +547,32 @@ export async function communityRoutes(app: FastifyInstance) {
       .set({ commentCount: sql`${communityPosts.commentCount} + 1` })
       .where(eq(communityPosts.id, postId))
 
-    return { success: true, comment }
+    // AI 智能体：评论里 @ 则后台回复一条；超额则同步提示
+    let aiQuotaExhausted = false
+    const nickname = await getAgentNickname()
+    if (containsMention(parsed.data.content, nickname)) {
+      const check = await checkMentionAllowed(request.user.userId)
+      if (check.ok && check.config) {
+        const logId = await reserveMentionLog('comment', comment.id, request.user.userId)
+        runMentionReply({
+          logId,
+          config: check.config,
+          agentId: check.agentId,
+          targetType: 'comment',
+          commentId: comment.id,
+          postId,
+          parentCommentId: comment.parentCommentId,
+          authorName: await getDisplayName(request.user.userId),
+          mentionContent: parsed.data.content,
+          contextText: `标题：${post.title}\n${post.content}`,
+          sceneLabel: '议事厅帖子',
+        })
+      } else if (check.quotaExhausted) {
+        aiQuotaExhausted = true
+      }
+    }
+
+    return { success: true, comment, aiQuotaExhausted }
   })
 
   // 删除评论（本人或管理员；主楼会级联删回复）

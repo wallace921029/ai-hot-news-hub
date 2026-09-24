@@ -5,6 +5,17 @@ import { communityMoments, momentComments, communityLikes, users } from '../db/s
 import { eq, and, desc, asc, sql } from 'drizzle-orm'
 import { authMiddleware } from '../middleware/auth.js'
 import { cleanupUploadsByOriginalUrls } from '../utils/uploads.js'
+import {
+  checkProactiveAllowed,
+  checkMentionAllowed,
+  containsMention,
+  getAgentNickname,
+  getDisplayName,
+  reserveMentionLog,
+  reserveProactiveLog,
+  runMentionReply,
+  runProactiveReply,
+} from '../services/ai-agent.js'
 
 const imageRefSchema = z.object({
   originalUrl: z.string().min(1),
@@ -142,6 +153,22 @@ export async function momentRoutes(app: FastifyInstance) {
         images: parsed.data.images ? JSON.stringify(parsed.data.images) : null,
       })
       .returning()
+
+    // AI 智能体：新动态主动评论一条
+    const proactive = await checkProactiveAllowed(request.user.userId)
+    if (proactive.ok && proactive.config) {
+      const logId = await reserveProactiveLog('moment', moment.id, request.user.userId)
+      runProactiveReply({
+        logId,
+        config: proactive.config,
+        agentId: proactive.agentId,
+        targetType: 'moment',
+        momentId: moment.id,
+        publisherName: await getDisplayName(request.user.userId),
+        content: parsed.data.content,
+        hasImages: !!parsed.data.images?.length,
+      })
+    }
 
     return {
       success: true,
@@ -364,7 +391,31 @@ export async function momentRoutes(app: FastifyInstance) {
       .set({ commentCount: sql`${communityMoments.commentCount} + 1` })
       .where(eq(communityMoments.id, momentId))
 
-    return { success: true, comment }
+    // AI 智能体：评论里 @ 则后台回复一条；超额则同步提示
+    let aiQuotaExhausted = false
+    const nickname = await getAgentNickname()
+    if (containsMention(parsed.data.content, nickname)) {
+      const check = await checkMentionAllowed(request.user.userId)
+      if (check.ok && check.config) {
+        const logId = await reserveMentionLog('moment_comment', comment.id, request.user.userId)
+        runMentionReply({
+          logId,
+          config: check.config,
+          agentId: check.agentId,
+          targetType: 'moment_comment',
+          commentId: comment.id,
+          momentId,
+          authorName: await getDisplayName(request.user.userId),
+          mentionContent: parsed.data.content,
+          contextText: moment.content,
+          sceneLabel: '电波动态',
+        })
+      } else if (check.quotaExhausted) {
+        aiQuotaExhausted = true
+      }
+    }
+
+    return { success: true, comment, aiQuotaExhausted }
   })
 
   // 删除动态评论（本人或管理员）

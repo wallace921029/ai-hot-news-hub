@@ -5,6 +5,7 @@ import { users, systemConfig } from '../db/schema.js'
 import { eq } from 'drizzle-orm'
 import { hashPassword, comparePassword, generateToken } from '../utils/auth.js'
 import { authMiddleware } from '../middleware/auth.js'
+import { getAgentConfig } from '../services/ai-agent.js'
 
 const registerSchema = z.object({
   username: z.string().min(3).max(50),
@@ -171,6 +172,18 @@ export async function authRoutes(app: FastifyInstance) {
     }
 
     const data = parsed.data
+
+    // 昵称不可占用 AI 智能体当前显示名
+    if (data.nickname !== undefined) {
+      const want = data.nickname.trim()
+      if (want) {
+        const agentConfig = await getAgentConfig()
+        if (want === agentConfig.nickname) {
+          return reply.status(400).send({ error: `昵称「${want}」已被 AI 智能体占用` })
+        }
+      }
+    }
+
     const [updated] = await db
       .update(users)
       .set({

@@ -17,6 +17,13 @@ export function AdminConfig() {
     aiApiKey: '',
     aiBaseUrl: '',
     aiModel: '',
+    aiAgentEnabled: false,
+    aiAgentNickname: '',
+    aiAgentPersona: '',
+    aiAgentMaxTokens: 300,
+    aiAgentTemperature: 0.8,
+    aiAgentThrottleEnabled: true,
+    aiAgentDailyLimit: 20,
   })
   const [basicForm, setBasicForm] = useState({
     inviteCode: '',
@@ -44,6 +51,13 @@ export function AdminConfig() {
         aiApiKey: config.aiApiKey || '',
         aiBaseUrl: config.aiBaseUrl || '',
         aiModel: config.aiModel || '',
+        aiAgentEnabled: config.aiAgentEnabled ?? false,
+        aiAgentNickname: config.aiAgentNickname || '',
+        aiAgentPersona: config.aiAgentPersona || '',
+        aiAgentMaxTokens: config.aiAgentMaxTokens ?? 300,
+        aiAgentTemperature: config.aiAgentTemperature ?? 0.8,
+        aiAgentThrottleEnabled: config.aiAgentThrottleEnabled ?? true,
+        aiAgentDailyLimit: config.aiAgentDailyLimit ?? 20,
       })
       setBasicForm({
         inviteCode: config.inviteCode || '',
@@ -208,6 +222,103 @@ export function AdminConfig() {
             >
               {t('admin.config.saveAiConfig')}
             </Button>
+
+            <div className="border-t pt-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>{t('admin.config.agentEnabled')}</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {t('admin.config.agentEnabledDesc')}
+                  </p>
+                </div>
+                <Switch
+                  checked={aiForm.aiAgentEnabled}
+                  onCheckedChange={(checked) => setAiForm({ ...aiForm, aiAgentEnabled: checked })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('admin.config.agentNickname')}</Label>
+                <Input
+                  value={aiForm.aiAgentNickname}
+                  onChange={(e) => setAiForm({ ...aiForm, aiAgentNickname: e.target.value })}
+                  placeholder="润土"
+                  className="max-w-xs"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('admin.config.agentNicknameDesc')}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('admin.config.agentPersona')}</Label>
+                <textarea
+                  value={aiForm.aiAgentPersona}
+                  onChange={(e) => setAiForm({ ...aiForm, aiAgentPersona: e.target.value })}
+                  rows={5}
+                  className="flex min-h-[120px] w-full rounded-xl border border-input bg-muted/40 px-3.5 py-2.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:bg-background transition-colors resize-y"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('admin.config.agentPersonaDesc')}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>{t('admin.config.agentMaxTokens')}</Label>
+                  <Input
+                    type="number"
+                    value={aiForm.aiAgentMaxTokens}
+                    onChange={(e) =>
+                      setAiForm({ ...aiForm, aiAgentMaxTokens: parseInt(e.target.value) || 300 })
+                    }
+                    min={1}
+                    max={32000}
+                    className="max-w-xs"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('admin.config.agentTemperature')}</Label>
+                  <Input
+                    type="number"
+                    step={0.1}
+                    value={aiForm.aiAgentTemperature}
+                    onChange={(e) =>
+                      setAiForm({
+                        ...aiForm,
+                        aiAgentTemperature: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    min={0}
+                    max={2}
+                    className="max-w-xs"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>{t('admin.config.agentThrottle')}</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {t('admin.config.agentThrottleDesc')}
+                  </p>
+                </div>
+                <Switch
+                  checked={aiForm.aiAgentThrottleEnabled}
+                  onCheckedChange={(checked) =>
+                    setAiForm({ ...aiForm, aiAgentThrottleEnabled: checked })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('admin.config.agentDailyLimit')}</Label>
+                <Input
+                  type="number"
+                  value={aiForm.aiAgentDailyLimit}
+                  onChange={(e) =>
+                    setAiForm({ ...aiForm, aiAgentDailyLimit: parseInt(e.target.value) || 0 })
+                  }
+                  min={0}
+                  className="max-w-xs"
+                />
+              </div>
+            </div>
           </div>
         </TabsContent>
 

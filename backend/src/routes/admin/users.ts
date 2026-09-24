@@ -4,6 +4,7 @@ import { db } from '../../db/index.js'
 import { users } from '../../db/schema.js'
 import { eq, desc, sql } from 'drizzle-orm'
 import { hashPassword } from '../../utils/auth.js'
+import { AI_AGENT_USERNAME } from '../../services/ai-agent.js'
 
 const createUserSchema = z.object({
   username: z.string().min(3).max(50),
@@ -136,6 +137,16 @@ export async function userRoutes(app: FastifyInstance) {
     // 不能删除自己
     if (parseInt(id) === request.user.userId) {
       return reply.status(400).send({ error: '不能删除自己的账号' })
+    }
+
+    // AI 智能体账号不可删除（删了启动时也会重建，且其评论有外键关联）
+    const [target] = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, parseInt(id)))
+      .limit(1)
+    if (target?.username === AI_AGENT_USERNAME) {
+      return reply.status(400).send({ error: 'AI 智能体账号不可删除' })
     }
 
     const [deleted] = await db

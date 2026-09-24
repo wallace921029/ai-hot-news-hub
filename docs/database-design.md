@@ -487,6 +487,53 @@ export const sourceStates = sqliteTable('source_states', {
 
 ---
 
+### 2.10 新闻评论表 (news_comments)
+
+**功能描述：**
+速递详情页评论，单层楼中楼（与议事厅一致）；@智能体可触发 AI 回复。
+
+**表结构：**
+
+| 字段名            | 类型    | 约束                                  | 说明                     |
+| ----------------- | ------- | ------------------------------------- | ------------------------ |
+| id                | INTEGER | PRIMARY KEY, AUTOINCREMENT            | 评论 ID                  |
+| news_item_id      | INTEGER | NOT NULL, FOREIGN KEY → news_items.id | 新闻 ID                  |
+| user_id           | INTEGER | NOT NULL, FOREIGN KEY → users.id      | 作者 ID                  |
+| parent_comment_id | INTEGER | -                                     | 父评论 ID（顶楼为 NULL） |
+| content           | TEXT    | NOT NULL                              | 内容                     |
+| like_count        | INTEGER | NOT NULL, DEFAULT 0                   | 点赞数（暂无点赞接口）   |
+| created_at        | INTEGER | NOT NULL, DEFAULT unixepoch()         | 创建时间（时间戳）       |
+
+---
+
+### 2.11 AI 智能体日志表 (ai_agent_logs)
+
+**功能描述：**
+记录 AI 智能体（`users.username='ai_agent'`，显示名可改，默认润土）的每次触发：
+`mention`（手动 @，计入每日配额）与 `proactive`（新帖/新动态主动欢迎，不计数）。
+
+**表结构：**
+
+| 字段名      | 类型    | 约束                          | 说明                                            |
+| ----------- | ------- | ----------------------------- | ----------------------------------------------- |
+| id          | INTEGER | PRIMARY KEY, AUTOINCREMENT    | 日志 ID                                         |
+| target_type | TEXT    | NOT NULL                      | moment/post/moment_comment/comment/news_comment |
+| target_id   | INTEGER | NOT NULL                      | 目标 ID（新帖/被@评论）                         |
+| trigger     | TEXT    | NOT NULL                      | mention/proactive                               |
+| user_id     | INTEGER | FOREIGN KEY → users.id        | 触发用户（@作者/发布者）                        |
+| status      | TEXT    | NOT NULL, DEFAULT 'pending'   | pending/success/failed（先占位防并发，后回填）  |
+| duration    | INTEGER | NOT NULL, DEFAULT 0           | 耗时（毫秒）                                    |
+| tokens_used | INTEGER | -                             | token 消耗                                      |
+| error       | TEXT    | -                             | 错误信息                                        |
+| created_at  | INTEGER | NOT NULL, DEFAULT unixepoch() | 创建时间（时间戳）                              |
+
+**相关系统配置键（`system_config`）：**
+`ai_agent_enabled`（无 Key 不可开）、`ai_agent_nickname`（显示名，双向防重）、
+`ai_agent_persona`（人设）、`ai_agent_max_tokens`、`ai_agent_temperature`、
+`ai_agent_throttle_enabled`、`ai_agent_daily_limit`（0=不限，仅手动 @ 计数）。
+
+---
+
 ## 3. 表关系设计
 
 ### 3.1 ER 图

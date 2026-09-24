@@ -373,6 +373,157 @@ describe('Admin Logs API', () => {
 })
 
 // ============================================================
+// AI Agent （智能体：@回复 + 每日限流）
+// ============================================================
+describe('AI Agent', () => {
+  let testMomentId = 0
+
+  it('PUT /auth/profile — 昵称不可占用 AI 智能体显示名', async () => {
+    const res = await api('PUT', '/auth/profile', { nickname: '润土' }, userToken)
+    assert.equal(res.status, 400)
+  })
+
+  it('PUT /admin/config — 无 Key 时不能开启智能体', async () => {
+    const res = await api('PUT', '/admin/config', { aiAgentEnabled: true }, adminToken)
+    assert.equal(res.status, 400)
+  })
+
+  it('PUT /admin/config — AI 昵称不可与用户重名', async () => {
+    const me = await api('PUT', '/auth/profile', { nickname: '瓜友甲' }, userToken)
+    assert.equal(me.status, 200)
+    const res = await api('PUT', '/admin/config', { aiAgentNickname: '瓜友甲' }, adminToken)
+    assert.equal(res.status, 409)
+  })
+
+  it('setup — 假 Key + 开启 + 限流 1 次/天', async () => {
+    const res = await api(
+      'PUT',
+      '/admin/config',
+      {
+        aiApiKey: 'test-fake-key',
+        aiBaseUrl: 'http://127.0.0.1:9',
+        aiModel: 'test-model',
+        aiAgentEnabled: true,
+        aiAgentThrottleEnabled: true,
+        aiAgentDailyLimit: 1,
+      },
+      adminToken
+    )
+    assert.equal(res.status, 200)
+  })
+
+  it('POST /moments — 创建动态', async () => {
+    const res = await api('POST', '/moments', { content: 'AI 测试动态' }, userToken)
+    assert.equal(res.status, 200)
+    testMomentId = (res.data as any).moment.id
+    assert.ok(testMomentId)
+  })
+
+  it('POST /moments/:id/comments — 首次 @ 不超额', async () => {
+    const res = await api(
+      'POST',
+      `/moments/${testMomentId}/comments`,
+      { content: '@润土 你好' },
+      userToken
+    )
+    assert.equal(res.status, 200)
+    assert.equal((res.data as any).aiQuotaExhausted, false)
+  })
+
+  it('POST /moments/:id/comments — 第二次 @ 提示超额', async () => {
+    const res = await api(
+      'POST',
+      `/moments/${testMomentId}/comments`,
+      { content: '@润土 还在吗' },
+      userToken
+    )
+    assert.equal(res.status, 200)
+    assert.equal((res.data as any).aiQuotaExhausted, true)
+  })
+
+  it('teardown — 恢复昵称与关闭智能体', async () => {
+    const res = await api(
+      'PUT',
+      '/admin/config',
+      { aiAgentNickname: '润土', aiAgentEnabled: false },
+      adminToken
+    )
+    assert.equal(res.status, 200)
+  })
+})
+
+// ============================================================
+// News Comments （速递评论：楼中楼 + 级联删除）
+// ============================================================
+describe('News Comments API', () => {
+  let newsId = 0
+  let topId = 0
+
+  it('GET /news — 等一条新闻做评论载体', async () => {
+    for (let i = 0; i < 45; i++) {
+      const res = await api('GET', '/news?page=1&pageSize=1')
+      assert.equal(res.status, 200)
+      if ((res.data as any).items.length > 0) {
+        newsId = (res.data as any).items[0].id
+        break
+      }
+      await new Promise((r) => setTimeout(r, 2000))
+    }
+    assert.ok(newsId, '抓取后应有新闻可供评论')
+  })
+
+  it('POST /news-comments/:newsId/comments — 发表主评论', async () => {
+    const res = await api(
+      'POST',
+      `/news-comments/${newsId}/comments`,
+      { content: '速递评论测试' },
+      userToken
+    )
+    assert.equal(res.status, 200)
+    assert.ok((res.data as any).comment.id)
+    topId = (res.data as any).comment.id
+  })
+
+  it('POST — 楼中楼回复', async () => {
+    const res = await api(
+      'POST',
+      `/news-comments/${newsId}/comments`,
+      { content: '楼中楼测试', parentCommentId: topId },
+      userToken
+    )
+    assert.equal(res.status, 200)
+  })
+
+  it('POST — 只能回复主评论', async () => {
+    const list = await api('GET', `/news-comments/${newsId}/comments`, undefined, userToken)
+    const nestedId = (list.data as any).items[0].replies[0].id
+    const res = await api(
+      'POST',
+      `/news-comments/${newsId}/comments`,
+      { content: '非法嵌套', parentCommentId: nestedId },
+      userToken
+    )
+    assert.equal(res.status, 400)
+  })
+
+  it('GET — 列表含楼中楼与作者', async () => {
+    const res = await api('GET', `/news-comments/${newsId}/comments`, undefined, userToken)
+    assert.equal(res.status, 200)
+    const items = (res.data as any).items
+    assert.ok(items.length > 0)
+    assert.ok(items[0].replies.length > 0)
+    assert.ok(items[0].author)
+  })
+
+  it('DELETE — 删除主楼级联删回复', async () => {
+    const res = await api('DELETE', `/news-comments/comments/${topId}`, undefined, userToken)
+    assert.equal(res.status, 200)
+    const list = await api('GET', `/news-comments/${newsId}/comments`, undefined, userToken)
+    assert.equal((list.data as any).items.length, 0)
+  })
+})
+
+// ============================================================
 // Permission checks
 // ============================================================
 describe('Permission checks', () => {

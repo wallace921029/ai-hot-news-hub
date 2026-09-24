@@ -6,6 +6,7 @@
 - Frontend entry: `src/main.tsx` → `src/App.tsx`. Backend entry: `backend/src/index.ts` (routes registered there with `/api/*` prefixes).
 - New data-source fetchers go in `backend/src/fetchers/` (+ `backend/src/parsers/`). Consult `docs/api.md` for already-tested source APIs before adding one.
 - Built-in API sources are **code-only config** (`backend/src/fetchers/api-sources.ts`, "代码即订阅"): they never live in `data_sources`; DB only stores their runtime state (`source_states`, keyed by stable `code`) and news/logs/alerts reference them via `source_code`. Startup runs an idempotent migration (`backend/src/db/migrate.ts`) that syncs state rows and upgrades old DBs. RSS sources remain rows in `data_sources` (admin can only create/edit RSS).
+- AI agent ("魂" `users.username='ai_agent'`, display nickname editable, default 润土): logic in `backend/src/services/ai-agent.ts` (OpenAI-compatible client `services/ai.ts`, key from `system_config.ai_api_key` or env). Mention-replies + proactive greets run fire-and-forget; mention quota per-user-per-day with sync `aiQuotaExhausted` flag; news comments live in `news_comments` (see `routes/news-comments.ts`).
 
 ## Commands
 

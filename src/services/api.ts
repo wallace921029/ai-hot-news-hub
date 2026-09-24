@@ -105,6 +105,22 @@ class ApiService {
     return this.request<any>(`/news/${id}`)
   }
 
+  // 新闻评论（速递详情页；@智能体可触发 AI 回复，超额时返回 aiQuotaExhausted）
+  async getNewsComments(newsId: number, page = 1, pageSize = 20) {
+    return this.request<any>(`/news-comments/${newsId}/comments?page=${page}&pageSize=${pageSize}`)
+  }
+
+  async createNewsComment(newsId: number, content: string, parentCommentId?: number) {
+    return this.request<any>(`/news-comments/${newsId}/comments`, {
+      method: 'POST',
+      body: parentCommentId ? { content, parentCommentId } : { content },
+    })
+  }
+
+  async deleteNewsComment(id: number) {
+    return this.request<any>(`/news-comments/comments/${id}`, { method: 'DELETE' })
+  }
+
   async getNewsSources(sourceType?: string) {
     const searchParams = new URLSearchParams()
     if (sourceType) searchParams.set('sourceType', sourceType)
@@ -182,10 +198,13 @@ class ApiService {
   }
 
   async createCommunityComment(postId: number, content: string, parentCommentId?: number) {
-    return this.request<{ success: boolean; comment: any }>(`/community/posts/${postId}/comments`, {
-      method: 'POST',
-      body: parentCommentId ? { content, parentCommentId } : { content },
-    })
+    return this.request<{ success: boolean; comment: any; aiQuotaExhausted: boolean }>(
+      `/community/posts/${postId}/comments`,
+      {
+        method: 'POST',
+        body: parentCommentId ? { content, parentCommentId } : { content },
+      }
+    )
   }
 
   async deleteCommunityComment(id: number) {
@@ -263,10 +282,13 @@ class ApiService {
   }
 
   async createMomentComment(momentId: number, content: string) {
-    return this.request<{ success: boolean; comment: any }>(`/moments/${momentId}/comments`, {
-      method: 'POST',
-      body: { content },
-    })
+    return this.request<{ success: boolean; comment: any; aiQuotaExhausted: boolean }>(
+      `/moments/${momentId}/comments`,
+      {
+        method: 'POST',
+        body: { content },
+      }
+    )
   }
 
   async deleteMomentComment(id: number) {

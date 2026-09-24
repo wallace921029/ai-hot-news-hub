@@ -79,8 +79,9 @@ function MomentComments({ momentId }: { momentId: number }) {
   const createComment = useMutation({
     mutationFn: () => api.createMomentComment(momentId, input.trim()),
     onMutate: () => setSending(true),
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success(t('moments.commentSuccess'))
+      if (data?.aiQuotaExhausted) toast.warning(t('ai.quotaExhausted'))
       setInput('')
       setSending(false)
       invalidate()

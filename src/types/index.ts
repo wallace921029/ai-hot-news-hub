@@ -136,6 +136,19 @@ export interface CommunityComment {
   replies?: CommunityComment[]
 }
 
+/** 速递新闻评论（单层楼中楼；暂无点赞） */
+export interface NewsComment {
+  id: number
+  newsItemId: number
+  userId: number
+  parentCommentId: number | null
+  content: string
+  likeCount: number
+  createdAt: string
+  author: CommunityAuthor | null
+  replies?: NewsComment[]
+}
+
 export interface ImageRef {
   originalUrl: string
   thumbUrl: string

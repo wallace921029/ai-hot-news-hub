@@ -171,6 +171,44 @@ export const momentComments = sqliteTable('moment_comments', {
     .default(sql`(unixepoch())`),
 })
 
+// 新闻评论表（速递详情页；单层回复，与议事厅一致）
+export const newsComments = sqliteTable('news_comments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  newsItemId: integer('news_item_id')
+    .notNull()
+    .references(() => newsItems.id),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  parentCommentId: integer('parent_comment_id'),
+  content: text('content').notNull(),
+  likeCount: integer('like_count').notNull().default(0),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})
+
+// AI 智能体调用日志表（@回复与主动评论；trigger='mention' 计入每日配额）
+export const aiAgentLogs = sqliteTable('ai_agent_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  targetType: text('target_type', {
+    enum: ['moment', 'post', 'moment_comment', 'comment', 'news_comment'],
+  }).notNull(),
+  targetId: integer('target_id').notNull(),
+  trigger: text('trigger', { enum: ['mention', 'proactive'] }).notNull(),
+  /** 触发用户（@作者 / 新帖发布者）；系统行为为 null */
+  userId: integer('user_id').references(() => users.id),
+  status: text('status', { enum: ['pending', 'success', 'failed'] })
+    .notNull()
+    .default('pending'),
+  duration: integer('duration').notNull().default(0), // 毫秒
+  tokensUsed: integer('tokens_used'),
+  error: text('error'),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})
+
 // 图片资源表（上传即入库，便于清理与鉴权）
 export const communityImages = sqliteTable('community_images', {
   id: integer('id').primaryKey({ autoIncrement: true }),
