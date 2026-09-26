@@ -2,6 +2,7 @@ import { db } from '../db/index.js'
 import { systemConfig } from '../db/schema.js'
 import { eq } from 'drizzle-orm'
 import { env } from '../utils/env.js'
+import { proxyFetch } from '../utils/http.js'
 
 export interface AiChatConfig {
   baseUrl: string
@@ -80,7 +81,7 @@ export async function chatCompletion(opts: AiChatOptions): Promise<AiChatResult>
   if (opts.reasoningEffort != null) body.reasoning_effort = opts.reasoningEffort
 
   try {
-    const response = await fetch(`${config.baseUrl}/chat/completions`, {
+    const response = await proxyFetch(`${config.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${config.apiKey}`,

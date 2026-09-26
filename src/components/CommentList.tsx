@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Pagination } from '@/components/Pagination'
 import { UserAvatar } from '@/components/UserAvatar'
+import { MentionText } from '@/components/MentionText'
 import type { CommunityAuthor } from '@/types'
 
 /** 通用评论条目（议事厅 / 速递共用；速递暂无点赞） */
@@ -38,6 +39,8 @@ interface CommentListProps {
   onToggleLike?: (id: number) => void
   onReply: (parentId: number, username: string) => void
   onDelete: (id: number) => void
+  /** 点头像 @ 人（不传则头像不可点；点自己头像永远无响应） */
+  onMentionUser?: (parentId: number, username: string) => void
 }
 
 const freshnessColors = {
@@ -85,6 +88,41 @@ function AuthorBadge() {
   )
 }
 
+/** 点头像 @ 人；不传 onMentionUser 或点自己头像时退化为纯展示 */
+function MentionableAvatar({
+  avatar,
+  username,
+  displayName,
+  size,
+  parentId,
+  isSelf,
+  onMentionUser,
+}: {
+  avatar?: string | null
+  username: string
+  displayName: string
+  size: number
+  parentId: number
+  isSelf: boolean
+  onMentionUser?: (parentId: number, username: string) => void
+}) {
+  const { t } = useTranslation()
+  const img = <UserAvatar avatar={avatar} username={username} size={size} />
+  if (!onMentionUser || isSelf) {
+    return <div className="mt-0.5 shrink-0 self-start">{img}</div>
+  }
+  return (
+    <button
+      type="button"
+      title={t('mention.mentionUser', { username: displayName })}
+      onClick={() => onMentionUser(parentId, displayName)}
+      className="mt-0.5 shrink-0 self-start rounded-full cursor-pointer hover:opacity-75 transition-opacity"
+    >
+      {img}
+    </button>
+  )
+}
+
 export function CommentList({
   loading,
   items,
@@ -100,6 +138,7 @@ export function CommentList({
   onToggleLike,
   onReply,
   onDelete,
+  onMentionUser,
 }: CommentListProps) {
   const { t } = useTranslation()
   const formatTime = useRelativeTime()
@@ -153,11 +192,14 @@ export function CommentList({
             transition={{ type: 'spring', stiffness: 380, damping: 30 }}
             className="flex gap-3 py-4 border-b last:border-0 hover:bg-muted/40 -mx-3 px-3 rounded-lg transition-colors"
           >
-            <UserAvatar
+            <MentionableAvatar
               avatar={comment.author?.avatar}
               username={comment.author?.username || '?'}
+              displayName={name}
               size={32}
-              className="mt-0.5 shrink-0 self-start"
+              parentId={comment.id}
+              isSelf={comment.userId === currentUserId}
+              onMentionUser={onMentionUser}
             />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 text-xs">
@@ -169,7 +211,7 @@ export function CommentList({
                 </span>
               </div>
               <p className="text-sm text-foreground/90 mt-1.5 whitespace-pre-wrap leading-relaxed">
-                {comment.content}
+                <MentionText text={comment.content} />
               </p>
               <div className="flex items-center gap-1 mt-1.5">
                 {onToggleLike && (
@@ -214,11 +256,14 @@ export function CommentList({
                     const rIsAuthor = originalPosterId != null && reply.userId === originalPosterId
                     return (
                       <div key={reply.id} className="flex gap-2">
-                        <UserAvatar
+                        <MentionableAvatar
                           avatar={reply.author?.avatar}
                           username={reply.author?.username || '?'}
+                          displayName={rName}
                           size={24}
-                          className="mt-0.5 shrink-0 self-start"
+                          parentId={comment.id}
+                          isSelf={reply.userId === currentUserId}
+                          onMentionUser={onMentionUser}
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 text-xs">
@@ -230,7 +275,7 @@ export function CommentList({
                           </div>
                           <p className="text-sm text-foreground/85 mt-1 whitespace-pre-wrap leading-relaxed">
                             <span className="text-primary font-medium">@{name} </span>
-                            {reply.content}
+                            <MentionText text={reply.content} />
                           </p>
                           <div className="flex items-center gap-1 mt-1">
                             {onToggleLike && (

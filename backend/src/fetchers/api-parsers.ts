@@ -1,5 +1,6 @@
 import Parser from 'rss-parser'
 import type { PlatformParser, RawNewsItem } from './types.js'
+import { proxyFetch } from '../utils/http.js'
 
 const atomParser = new Parser()
 
@@ -76,7 +77,7 @@ const hnFirebase: PlatformParser = {
     const ids = requireArray<number>(data, 'hacker-news topstories').slice(0, 12)
     const details = await Promise.all(
       ids.map(async (id) => {
-        const res = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`)
+        const res = await proxyFetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`)
         if (!res.ok) return null
         return (await res.json()) as {
           type?: string

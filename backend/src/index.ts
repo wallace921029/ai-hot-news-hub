@@ -11,6 +11,7 @@ import { favoriteRoutes } from './routes/favorites.js'
 import { communityRoutes } from './routes/community.js'
 import { momentRoutes } from './routes/moments.js'
 import { newsCommentRoutes } from './routes/news-comments.js'
+import { aiRoutes } from './routes/ai.js'
 import { uploadRoutes } from './routes/uploads.js'
 import { adminRoutes } from './routes/admin/index.js'
 import { startScheduler, fetchAllSources } from './scheduler/index.js'
@@ -31,7 +32,12 @@ await app.register(cors, {
 // 静态资源：上传图片
 import fastifyStatic from '@fastify/static'
 import fastifyMultipart from '@fastify/multipart'
+import { mkdirSync } from 'fs'
 import { UPLOAD_ROOT } from './utils/uploads.js'
+
+// @fastify/static 要求 root 目录在注册时已存在（fresh clone 时 data/uploads 尚无）
+// 上传路由内的 ensureDirs() 只在首次上传时执行，覆盖不到启动阶段
+mkdirSync(UPLOAD_ROOT, { recursive: true })
 
 await app.register(fastifyMultipart, {
   limits: { fileSize: 10 * 1024 * 1024, files: 10 },
@@ -50,6 +56,7 @@ await app.register(uploadRoutes, { prefix: '/api/uploads' })
 await app.register(communityRoutes, { prefix: '/api/community' })
 await app.register(momentRoutes, { prefix: '/api/moments' })
 await app.register(newsCommentRoutes, { prefix: '/api/news-comments' })
+await app.register(aiRoutes, { prefix: '/api/ai' })
 await app.register(adminRoutes, { prefix: '/api/admin' })
 
 // 健康检查

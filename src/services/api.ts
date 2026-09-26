@@ -13,6 +13,13 @@ interface RequestOptions {
   headers?: Record<string, string>
 }
 
+/** 可 @ 的 AI（后端 GET /ai/agents 条目） */
+export interface MentionableAgent {
+  username: string
+  nickname: string
+  avatar: string
+}
+
 class ApiService {
   private token: string | null = null
 
@@ -447,6 +454,11 @@ class ApiService {
       method: 'POST',
       body: { baseUrl, apiKey },
     })
+  }
+
+  // 可 @ 的 AI 列表（公开接口；AI 关闭时返回空数组）
+  async getAiAgents() {
+    return this.request<{ agents: MentionableAgent[] }>('/ai/agents')
   }
 
   // 管理员 - 统计

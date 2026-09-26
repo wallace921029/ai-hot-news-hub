@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio'
 import type { Fetcher, FetcherSource, RawNewsItem } from './types.js'
+import { proxyFetch } from '../utils/http.js'
 
 interface HtmlParser {
   parse(html: string, source: FetcherSource): RawNewsItem[]
@@ -157,7 +158,7 @@ export class HtmlFetcher implements Fetcher {
       ...source.headers,
     }
 
-    const response = await fetch(source.url, {
+    const response = await proxyFetch(source.url, {
       method: source.method || 'GET',
       headers,
     })

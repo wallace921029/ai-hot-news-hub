@@ -229,6 +229,13 @@
   "ai": {
     "quotaExhausted": "AI reply quota exhausted for today, try again tomorrow"
   },
+  "mention": {
+    "pickAi": "Mention an AI",
+    "aiBadge": "AI",
+    "hint": "↑↓ to navigate · Enter to select · Esc to dismiss",
+    "loading": "Loading…",
+    "mentionUser": "@{{username}}"
+  },
   "admin": {
     "dashboard": {
       "title": "Dashboard",

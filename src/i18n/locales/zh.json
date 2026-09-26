@@ -229,6 +229,13 @@
   "ai": {
     "quotaExhausted": "AI 今日回复额度已用完，明天再来"
   },
+  "mention": {
+    "pickAi": "选择要 @ 的 AI",
+    "aiBadge": "AI",
+    "hint": "↑↓ 选择 · Enter 确认 · Esc 关闭",
+    "loading": "加载中…",
+    "mentionUser": "@{{username}}"
+  },
   "admin": {
     "dashboard": {
       "title": "仪表盘",

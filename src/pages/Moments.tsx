@@ -16,6 +16,10 @@ import {
 } from '@/components/ui/dialog'
 import { UserAvatar } from '@/components/UserAvatar'
 import { EmojiPickerButton } from '@/components/EmojiPickerButton'
+import { AiMentionPopup } from '@/components/AiMentionPopup'
+import { MentionText } from '@/components/MentionText'
+import { useAiMention } from '@/hooks/useAiMention'
+import { insertTextAtCaret } from '@/lib/caret'
 import { Pagination } from '@/components/Pagination'
 import { ImageGrid } from '@/components/ImageGrid'
 import {
@@ -90,10 +94,10 @@ function MomentComments({
     queryFn: () => api.getMomentComments(momentId, 1, 1, 'desc'),
     enabled: commentCount > 0 || isFreshMoment,
   })
-  // 展开：分页 5 条/页，时间正序
+  // 展开：分页 5 条/页，时间倒序（最新在前）
   const { data: pageData, isLoading: pageLoading } = useQuery({
     queryKey: pageKey,
-    queryFn: () => api.getMomentComments(momentId, page, COMMENT_PAGE_SIZE),
+    queryFn: () => api.getMomentComments(momentId, page, COMMENT_PAGE_SIZE, 'desc'),
     enabled: showAll,
   })
   const { watchAiReply, stopAiReplyWatch } = useAiReplyPoll()
@@ -149,9 +153,9 @@ function MomentComments({
             }
           : old
       )
-      // 展开的分页里也追加一条（ showing 即时反馈）
+      // 展开的分页里也追加一条（ showing 即时反馈；倒序展示，新评论顶到最前）
       queryClient.setQueryData(pageKey, (old: any) =>
-        old ? { ...old, items: [...(old.items || []), temp] } : old
+        old ? { ...old, items: [temp, ...(old.items || [])] } : old
       )
       return { prevPreview, prevPage, previewKey, pageKey }
     },
@@ -218,6 +222,13 @@ function MomentComments({
     if (canSend) createComment.mutate()
   }
 
+  const mention = useAiMention({
+    value: input,
+    setValue: setInput,
+    textareaRef,
+    maxLength: 500,
+  })
+
   const confirmDelete = () => {
     if (pendingDeleteId !== null) {
       deleteComment.mutate(pendingDeleteId)
@@ -228,21 +239,36 @@ function MomentComments({
   const renderRow = (c: MomentComment) => {
     const name = c.author?.nickname?.trim() || c.author?.username || '?'
     const canDelete = c.userId === user?.id || isAdmin
+    const isSelf = c.userId === user?.id
+    // 点头像 @ 人：只落字（动态评论扁平、无楼可挂）；点自己无响应
+    const mentionUser = () => {
+      if (isSelf) return
+      insertTextAtCaret(textareaRef.current, input, `@${name} `, setInput, 500)
+    }
+    const avatar = (
+      <UserAvatar avatar={c.author?.avatar} username={c.author?.username || '?'} size={24} />
+    )
     return (
       <div key={c.id} className="flex gap-2">
-        <UserAvatar
-          avatar={c.author?.avatar}
-          username={c.author?.username || '?'}
-          size={24}
-          className="mt-0.5 shrink-0 self-start"
-        />
+        {isSelf ? (
+          <div className="mt-0.5 shrink-0 self-start">{avatar}</div>
+        ) : (
+          <button
+            type="button"
+            title={t('mention.mentionUser', { username: name })}
+            onClick={mentionUser}
+            className="mt-0.5 shrink-0 self-start rounded-full cursor-pointer hover:opacity-75 transition-opacity"
+          >
+            {avatar}
+          </button>
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 text-xs">
             <span className="font-medium text-foreground/85">{name}</span>
             <span className="text-muted-foreground">{formatTime(c.createdAt)}</span>
           </div>
           <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap leading-relaxed">
-            {c.content}
+            <MentionText text={c.content} />
           </p>
           <div className="flex items-center gap-1 mt-0.5">
             <Button
@@ -332,15 +358,27 @@ function MomentComments({
               maxLength={500}
               rows={1}
               placeholder={t('moments.commentPlaceholder')}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => mention.handleMentionChange(e.target.value)}
               onKeyDown={(e) => {
+                if (mention.handleMentionKeyDown(e)) return
                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                   e.preventDefault()
                   submit()
                 }
               }}
+              onBlur={() => mention.closeMention()}
               className="flex min-h-[36px] w-full rounded-lg border border-input bg-background px-3 py-2 pr-20 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
             />
+            {mention.mentionOpen && mention.mentionCoords && (
+              <AiMentionPopup
+                coords={mention.mentionCoords}
+                agents={mention.mentionAgents}
+                activeIndex={mention.mentionActiveIndex}
+                loading={mention.mentionLoading}
+                onSelect={mention.selectMentionAgent}
+                onHover={mention.setMentionActiveIndex}
+              />
+            )}
             <div className="absolute bottom-1 right-1 flex items-center">
               <EmojiPickerButton onSelect={insertEmoji} />
               <Button size="sm" disabled={!canSend} onClick={submit} className="h-7 min-w-7">
@@ -430,7 +468,7 @@ function MomentCard({
                 )}
               </div>
               <p className="text-[15px] text-foreground/90 mt-1.5 whitespace-pre-wrap leading-relaxed">
-                {moment.content}
+                <MentionText text={moment.content} />
               </p>
               {moment.images && moment.images.length > 0 && (
                 <ImageGrid

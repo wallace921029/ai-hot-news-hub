@@ -1,5 +1,6 @@
 import type { Fetcher, FetcherSource, PlatformParser, RawNewsItem } from './types.js'
 import { apiParsers } from './api-parsers.js'
+import { proxyFetch } from '../utils/http.js'
 
 // 知乎热榜
 const zhihuParser: PlatformParser = {
@@ -396,7 +397,7 @@ export class RestFetcher implements Fetcher {
       ...source.headers,
     }
 
-    const response = await fetch(url, {
+    const response = await proxyFetch(url, {
       method: source.method || 'GET',
       headers,
       body: source.method === 'POST' ? source.body : undefined,

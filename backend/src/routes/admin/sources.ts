@@ -4,6 +4,7 @@ import { db } from '../../db/index.js'
 import { dataSources, fetchLogs, sourceStates } from '../../db/schema.js'
 import { eq, desc } from 'drizzle-orm'
 import { fetchSource, builtinTargetFromDef, rssTargetFromRow } from '../../scheduler/index.js'
+import { proxyFetch } from '../../utils/http.js'
 import { builtinApiSources, getBuiltinApiSource } from '../../fetchers/api-sources.js'
 
 const rssCreateSchema = z.object({
@@ -185,7 +186,7 @@ export async function sourceRoutes(app: FastifyInstance) {
         ...def.headers,
       }
 
-      const response = await fetch(def.url, {
+      const response = await proxyFetch(def.url, {
         method: def.method || 'GET',
         headers,
         body: def.method === 'POST' ? def.body : undefined,
@@ -248,7 +249,7 @@ export async function sourceRoutes(app: FastifyInstance) {
         Object.assign(headers, JSON.parse(source.headers))
       }
 
-      const response = await fetch(source.url, {
+      const response = await proxyFetch(source.url, {
         method: source.method || 'GET',
         headers,
         body: source.method === 'POST' ? source.body : undefined,

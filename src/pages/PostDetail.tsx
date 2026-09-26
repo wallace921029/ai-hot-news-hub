@@ -29,6 +29,9 @@ import {
 } from '@/components/ui/dialog'
 import { UserAvatar } from '@/components/UserAvatar'
 import { CommentList } from '@/components/CommentList'
+import { AiMentionPopup } from '@/components/AiMentionPopup'
+import { useAiMention } from '@/hooks/useAiMention'
+import { insertTextAtCaret } from '@/lib/caret'
 import { motion, AnimatePresence } from 'framer-motion'
 import { pageTransition } from '@/lib/animations'
 import {
@@ -340,16 +343,28 @@ export function PostDetailPage() {
     })
   }
 
-  const handleCommentInput = (value: string) => {
-    setCommentInput(value)
-    if (sendState === 'sent') setSendState('idle')
-  }
+  const mention = useAiMention({
+    value: commentInput,
+    setValue: setCommentInput,
+    textareaRef,
+    maxLength: 2000,
+    onExtraChange: () => {
+      if (sendState === 'sent') setSendState('idle')
+    },
+  })
 
   const handleComposerKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mention.handleMentionKeyDown(e)) return
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && canSend) {
       e.preventDefault()
       createComment.mutate()
     }
+  }
+
+  // 点头像 @ 人：挂到对应主楼 + 落字 @用户名 + 聚焦（与回复按钮同线程）
+  const handleMentionUser = (parentId: number, username: string) => {
+    setReplyTarget({ parentId, username })
+    insertTextAtCaret(textareaRef.current, commentInput, `@${username} `, setCommentInput, 2000)
   }
 
   return (
@@ -514,6 +529,7 @@ export function PostDetailPage() {
                 textareaRef.current?.focus()
               }}
               onDelete={(id) => setPendingDeleteCommentId(id)}
+              onMentionUser={handleMentionUser}
             />
 
             {/* 发表评论（底部输入框，支持回复 @） */}
@@ -549,10 +565,21 @@ export function PostDetailPage() {
                       ? t('community.replyPlaceholder', { username: replyTarget.username })
                       : t('community.commentPlaceholder')
                   }
-                  onChange={(e) => handleCommentInput(e.target.value)}
+                  onChange={(e) => mention.handleMentionChange(e.target.value)}
                   onKeyDown={handleComposerKeyDown}
+                  onBlur={() => mention.closeMention()}
                   className="flex min-h-[96px] w-full rounded-xl border border-input bg-muted/40 px-3.5 py-2.5 pb-12 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:bg-background transition-colors disabled:cursor-not-allowed disabled:opacity-50 resize-y"
                 />
+                {mention.mentionOpen && mention.mentionCoords && (
+                  <AiMentionPopup
+                    coords={mention.mentionCoords}
+                    agents={mention.mentionAgents}
+                    activeIndex={mention.mentionActiveIndex}
+                    loading={mention.mentionLoading}
+                    onSelect={mention.selectMentionAgent}
+                    onHover={mention.setMentionActiveIndex}
+                  />
+                )}
                 {/* 内置操作区 */}
                 <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1">
                   <Button

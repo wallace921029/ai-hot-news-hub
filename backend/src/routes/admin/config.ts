@@ -20,6 +20,7 @@ import {
   syncAgentProfile,
 } from '../../services/ai-agent.js'
 import { env } from '../../utils/env.js'
+import { proxyFetch } from '../../utils/http.js'
 
 const configSchema = z.object({
   inviteCode: z.string().optional(),
@@ -274,7 +275,9 @@ export async function configRoutes(app: FastifyInstance) {
     }
 
     try {
-      const response = await fetch(`${baseUrl}/models`, {
+      // 去掉末尾斜杠再拼 /models（与 services/ai.ts 的 chatCompletion 保持一致）：
+      // xiaomimimo 等上游对 //models 直接返回 400
+      const response = await proxyFetch(`${baseUrl.replace(/\/+$/, '')}/models`, {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
