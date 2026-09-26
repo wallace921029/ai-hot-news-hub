@@ -1,138 +1,53 @@
 # AI Hot News Hub
 
-A one-stop hub aggregating trending content from major Chinese and international platforms (Zhihu, Weibo, Bilibili, GitHub, etc.), with AI-powered categorization and scoring to help you efficiently discover high-quality information.
+One-stop hub aggregating trending content from 20+ Chinese and international platforms (Zhihu, Weibo, Bilibili, GitHub, Hugging Face…), with AI categorization and scoring.
 
 ## Features
 
-- **Multi-platform aggregation** — Fetches hot lists from 20+ platforms including Zhihu, Weibo, Bilibili, Toutiao, GitHub, Hugging Face, and more
-- **AI classification & scoring** — Automatically categorizes and scores content (0–100) via OpenAI-compatible APIs
-- **Smart filtering** — Filter by platform, category, or sort by AI score / time
-- **Full-text search** — Search across titles and summaries
-- **Favorites** — Save and manage articles of interest
-- **Admin panel** — Manage data sources, users, content, system config, stats, and logs
-- **Scheduled fetching** — Configurable cron-based data source polling
-- **Docker ready** — One-command deployment with Docker Compose
+- **Multi-platform aggregation** — hot lists from 20+ platforms, cron-based polling
+- **AI classification & scoring** — 0–100 via OpenAI-compatible APIs
+- **Filter, search, favorites** — by platform / category / score, full-text search
+- **Community** — discussion board, moments, threaded comments, AI @-replies
+- **Admin panel** — sources, users, content, config, stats, logs
+- **Docker ready**
 
 ## Tech Stack
 
-| Layer         | Technology                        |
-| ------------- | --------------------------------- |
-| Frontend      | React 19, TypeScript 6, Vite 8    |
-| UI            | Tailwind CSS 4, Shadcn/ui (Radix) |
-| State         | Zustand                           |
-| Data Fetching | TanStack Query                    |
-| Charts        | ECharts                           |
-| Backend       | Fastify, Node.js                  |
-| Database      | SQLite, Drizzle ORM               |
-| AI            | OpenAI-compatible Chat Completion |
-| Scheduler     | node-cron                         |
-| Linter        | oxlint                            |
+| Layer    | Technology                                                                     |
+| -------- | ------------------------------------------------------------------------------ |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, shadcn/ui, Zustand, TanStack Query |
+| Backend  | Fastify, SQLite + Drizzle ORM, node-cron                                       |
+| AI       | OpenAI-compatible Chat Completion                                              |
+| Tooling  | oxlint, prettier                                                               |
 
-## Getting Started
+## Quick Start
 
-### Prerequisites
-
-- Node.js >= 18
-- npm
-
-### Installation
+Requires Node.js >= 18.
 
 ```bash
-# Clone the repo
-git clone https://github.com/wallace921029/ai-hot-news-hub.git
-cd ai-hot-news-hub
-
-# Install frontend dependencies
+# dependencies (two packages)
 npm install
+cd backend && npm install && cd ..
 
-# Install backend dependencies
-cd backend
-npm install
-cd ..
+# database (order matters)
+cd backend && npm run db:push && npm run db:seed && cd ..
+
+# config
+cp backend/.env.example backend/.env # then edit JWT_SECRET / AI_* / ADMIN_*
 ```
-
-### Database Setup
 
 ```bash
-cd backend
-
-# Push schema to SQLite
-npm run db:push
-
-# Seed default data sources
-npm run db:seed
+./scripts/dev.sh # backend :8762 + frontend :8763
 ```
 
-### Configuration
+Log in with the admin account from `backend/.env` (defaults `admin@example.com` / `admin123`).
 
-Create `backend/.env` based on `backend/.env.example` and configure:
+## Docs
 
-- `JWT_SECRET` — Secret for JWT token signing
-- `AI_BASE_URL` — OpenAI-compatible API base URL
-- `AI_API_KEY` — API key for the AI service
-- `AI_MODEL` — Model name (e.g. `gpt-4o-mini`)
-
-### Development
-
-```bash
-# Start backend (from backend/)
-npm run dev
-
-# Start frontend (from project root)
-npm run dev
-```
-
-The frontend runs at `http://localhost:8763` and the backend at `http://localhost:8762`.
-
-### Production Build
-
-```bash
-# Build frontend
-npm run build
-
-# Build backend
-cd backend
-npm run build
-npm run start
-```
-
-### Docker
-
-```bash
-docker-compose up -d
-```
-
-## Project Structure
-
-```
-ai-hot-news-hub/
-├── src/                    # Frontend source
-│   ├── components/         # UI components (layouts, ui/)
-│   ├── pages/              # Route pages (Home, Login, admin/*)
-│   ├── stores/             # Zustand stores
-│   ├── services/           # API client
-│   └── types/              # TypeScript types
-├── backend/                # Backend source
-│   ├── src/
-│   │   ├── routes/         # API routes (auth, news, favorites, admin)
-│   │   ├── db/             # Database schema, seed
-│   │   ├── fetchers/       # Data fetchers (REST, RSS, HTML)
-│   │   ├── ai/             # AI processing
-│   │   ├── scheduler/      # Cron scheduler
-│   │   └── middleware/      # Auth middleware
-│   └── data/               # SQLite database file
-├── docs/                   # Documentation & screenshots
-├── docker-compose.yml
-└── Dockerfile
-```
-
-## Supported Data Sources
-
-See [`docs/api.md`](docs/api.md) for the full list of tested public APIs.
-
-**Chinese platforms:** Zhihu, Weibo, Bilibili, Toutiao, Thepaper, Douban, IT之家, 少数派, 36Kr, Baidu, etc.
-
-**International / Dev:** GitHub Trending, Hugging Face, Google AI Blog, MIT Tech Review, etc.
+- `docs/api.md` — tested source APIs / supported platforms
+- `docs/deployment.md` — production & Docker deploys
+- `docs/database-design.md`, `docs/module-description.md` — architecture
+- `AGENTS.md` — contributor / agent guide
 
 ## License
 
